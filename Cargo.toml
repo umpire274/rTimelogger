@@ -1,6 +1,6 @@
 [package]
 name = "rtimelogger"
-version = "0.6.5"
+version = "0.6.6"
 edition = "2024"
 authors = ["Umpire274 <umpire274@gmail.com>"]
 description = "A simple cross-platform CLI tool to track working hours, lunch breaks, and calculate surplus time"
@@ -17,6 +17,17 @@ include = [
     "LICENSE",
     "CHANGELOG.md"
 ]
+
+[build-dependencies]
+winresource = "0.1.23"
+
+[package.metadata.winresource]
+OriginalFilename = "rtimelogger.exe"
+FileDescription = "rTimelogger - Time Tracking Utility"
+ProductName = "rTimelogger"
+ProductVersion = "0.6.6"
+LegalCopyright = "© 2025 Alessandro Maestri"
+Icon = "res/rtimelogger.ico"
 
 [dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }

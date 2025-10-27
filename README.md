@@ -1,4 +1,7 @@
-# rTimelogger
+<h1 style="text-align: left;">
+  <img src="res/rtimelogger.svg" width="90" style="vertical-align: middle; margin-right: 8px;" alt="rTimelogger Logo"/>
+  rTimelogger
+</h1>
 
 [![Build Status](https://github.com/umpire274/rTimelogger/actions/workflows/ci.yml/badge.svg)](https://github.com/umpire274/rTimelogger/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/umpire274/rTimelogger)](https://github.com/umpire274/rTimelogger/releases)
@@ -6,20 +9,39 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 `rTimelogger` is a simple, cross-platform **command-line tool** written in Rust to track daily working sessions,
-including
-working position, start and end times, and lunch breaks.  
+including working position, start and end times, and lunch breaks.  
 The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-## What's new in 0.6.5
+## What's new in 0.6.6
 
-- perf(db): recompute `work_sessions.position` using a single SQLite query (COUNT(DISTINCT position) + MIN(position)) in
-  `delete_events_by_ids_and_recompute_sessions` instead of materializing positions in Rust.
-    - Moves distinct/count work to the DB, reducing allocations and avoiding sorting in Rust.
-    - Semantics preserved: update `position` only when exactly one distinct position remains; otherwise leave unchanged.
-- Added tests (`tests/position_recompute_tests.rs`) covering both the functional case and a repeated-run robustness loop
-  to guard against flakiness.
+**🪟 Windows Integration**
+
+- The Windows executable now includes an embedded icon (`res/rTimelogger.ico`), visible in Explorer and taskbar.
+- The embedding process is fully automated using the `winres` build dependency — no manual steps required.
+- The `.res` file generated during compilation is temporary and not part of the repository.
+
+**⚙️ CLI Consistency Update**
+
+- The top-level subcommand `conf` has been renamed to `config` to align naming conventions across all Rust CLI tools.
+    - Subcommands remain unchanged (`--print`, `--edit`, `--editor`).
+    - Corresponding handler renamed from `handle_conf` → `handle_config`.
+    - ⚠️ **Breaking change:** users must now call:
+      ```bash
+      rtimelogger config --print
+      ```
+
+**🗂️ Resource Organization**
+
+- Added a new `res/` directory for graphical assets (SVG, PNG, ICO).
+- The build process automatically compiles and embeds these assets during `cargo build --release`.
+
+**🧹 Backup Improvements**
+
+- When `--compress` is used, the uncompressed backup file (e.g. `my_db.sqlite.bck`) is automatically removed after a
+  successful compression.
+- A non-fatal warning is displayed if deletion fails.
 
 ---
 
