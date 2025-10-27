@@ -2,6 +2,13 @@
 
 ## [0.6.6] - 2025-10-13
 
+### Added
+
+- Embedded Windows application icon (`res/rTimelogger.ico`) directly into the executable.
+    - Implemented using the `winres` build dependency.
+    - The icon is now visible in Windows Explorer and taskbar.
+- New project resource directory `res/` for graphical assets (SVG, PNG, ICO).
+
 ### Changed
 
 - cli: rename top-level subcommand `conf` → `config` (and variant `Commands::Conf` → `Commands::Config`) to harmonize
@@ -11,12 +18,21 @@
     - Note: this is a breaking CLI name change (users must call `rtimelogger config ...`). Consider adding a
       backwards-compat shim in a follow-up if desired.
 
+### Changed
+
+- Build process updated to automatically compile and embed Windows resources during `cargo build --release`.
+- Improved project organization by moving graphical resources under `res/`.
+
 ### Fixed / Misc
 
 - backup: when `--compress` is provided, the original uncompressed backup file (e.g. `my_db.sqlite.bck`) is now removed
   after successful compression (e.g. `my_db.sqlite.zip` or `my_db.sqlite.tar.gz`) to avoid leaving redundant files on
   disk; a
   non-fatal warning is emitted if removal fails.
+
+### Notes
+
+- The `.res` file generated during build is temporary and no longer stored in the repository.
 
 ---
 

@@ -18,6 +18,17 @@ include = [
     "CHANGELOG.md"
 ]
 
+[build-dependencies]
+winresource = "0.1.23"
+
+[package.metadata.winres]
+OriginalFilename = "rtimelogger.exe"
+FileDescription = "rTimelogger - Time Tracking Utility"
+ProductName = "rTimelogger"
+ProductVersion = "0.6.6"
+LegalCopyright = "© 2025 Alessandro Maestri"
+Icon = "res/rtimelogger.ico"
+
 [dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 chrono = "0.4.42"
