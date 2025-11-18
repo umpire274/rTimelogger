@@ -19,6 +19,14 @@
         - `rtimelogger list --period 2025-06-01:2025-06-10`
         - `rtimelogger list --period 2024:2025`
 
+- **New --period all (full archive mode)**
+  Added support for rtimelogger list --period all to display every stored session, with no date filtering applied. Works
+  with all sub-filters (--pos, --events, --summary, --pairs, etc.).
+
+- **New --range all for export**
+  rtimelogger export --range all now exports all available data from the database (sessions or events), matching the new
+  list behaviour.
+
 - **Default period for `list`**  
   Running `rtimelogger list` without any period or event filters now automatically shows the **current month**,
   improving usability for daily workflows.
@@ -30,20 +38,27 @@
 ### Changed
 
 - Improved the help messages of `--period` and `export --range` with explicit descriptions and examples.
-- Refactored and extended the internal date-range parsing logic (`build_filtered_query`) to support year, month, day,
-  and custom ranges seamlessly for both sessions and events.
+- Refactored and extended internal filtering logic (`build_filtered_query`) to support:
+    - year / month / day
+    - ranges (`start:end`)
+    - the new `all` keyword across both sessions and events.
+
+- Improved test execution by migrating all tests to the new, non-deprecated `cargo_bin_cmd!` macro from `assert_cmd`,
+  replacing the deprecated `Command::cargo_bin()` API.
 
 ### Fixed
 
-- Improved error handling for malformed `add` command input (Issue #22). When the user provides an invalid date or
-  incorrect positional argument order, the CLI now displays a concise usage guide and examples directly in the error
-  output, instead of only showing the validation error. This makes the `add` command more self-explanatory and avoids
-  the need to run `rtimelogger add --help` after every mistake.
+- Improved error handling for malformed `add` command input (Issue #22).
+  When invalid input is detected (e.g., bad date format or missing positional arguments), the CLI now prints:
+    - a clear validation error
+    - a short usage guide
+    - positional argument descriptions
+    - concrete examples making the command easier to use without needing to run --help after every mistake.
 
 ### Notes
 
-`v0.7.0` introduces a new unified and powerful time-range filtering system, greatly improving the user experience for
-querying and exporting historical data while keeping all previous usages backwards-compatible.
+`v0.7.0` introduces a more powerful and unified date-range filtering system, a full-archive mode, improved help output,
+and modernized test infrastructure. All previous CLI behaviours remain fully backwards-compatible.
 
 ---
 

@@ -40,10 +40,15 @@ The tool calculates the expected exit time and the surplus of worked minutes.
   ```bash
   rtimelogger list
   ```
-  now shows the current month by default (instead of listing the whole history), unless:
-    - --period is provided
-    - --events is used
-    - --now is used
+    - now shows the current month by default (instead of listing the whole history), unless:
+        - --period is provided
+        - --events is used
+        - --now is used
+
+**🗓 Full Archive Listing**
+
+- Added support for `list --period all`, allowing users to display all sessions or all events without applying date
+  filters.
 
 This greatly improves usability for day-to-day workflows.
 
@@ -51,6 +56,7 @@ This greatly improves usability for day-to-day workflows.
 
 - The export --range option now supports the same extended date/range formats as --period.
 - This ensures consistency between listing and exporting sessions or events.
+- Added support for `export --range all`, which exports the entire archive without applying date filters.
 
 **🛠 Improved Error Feedback for add (Issue #22)**
 
@@ -226,6 +232,7 @@ rtimelogger list --period 2025-09-15  # specific day
 rtimelogger list --period 2025-06-01:2025-06-10  # day range
 rtimelogger list --period 2025-06:2025-08        # month range
 rtimelogger list --pos o           # filter by position
+rtimelogger list --period all         # entire history
 ```
 
 ### List raw events
@@ -349,10 +356,10 @@ Examples:
 
 ```bash
 # Export all events as CSV
-rtimelogger export --format csv --file /abs/path/events.csv --events
+rtimelogger export --format csv --file /abs/path/events.csv --events --range all
 
 # Export all sessions as JSON
-rtimelogger export --format json --file /abs/path/sessions.json --sessions
+rtimelogger export --format json --file /abs/path/sessions.json --sessions --range all
 
 
 # --- Single period formats ----------------------------------------------
@@ -408,6 +415,7 @@ Notes:
     - `YYYY:YYYY` (year range)
     - `YYYY-MM:YYYY-MM` (month range)
     - `YYYY-MM-DD:YYYY-MM-DD` (day range)
+    - `all` (entire dataset)
 - The output `--file` must be an absolute path.
 - If the output file already exists, the CLI prompts for confirmation unless `--force` is used.
 - Supported formats: `csv`, `json`, `xlsx`, `pdf`
