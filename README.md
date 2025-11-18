@@ -14,34 +14,53 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-## What's new in 0.6.6
+## **What's new in 0.7.0**
 
-**🪟 Windows Integration**
+**📅 Advanced Period Filtering**
 
-- The Windows executable now includes an embedded icon (`res/rTimelogger.ico`), visible in Explorer and taskbar.
-- The embedding process is fully automated using the `winres` build dependency — no manual steps required.
-- The `.res` file generated during compilation is temporary and not part of the repository.
+- The `--period` option of the `list` command now supports:
+    - YYYY → full year
+    - YYYY-MM → full month
+    - YYYY-MM-DD → specific day
+    - Custom ranges using start:end:
+        - YYYY:YYYY → year range
+        - YYYY-MM:YYYY-MM → month range
+        - YYYY-MM-DD:YYYY-MM-DD → day range
+- Examples:
 
-**⚙️ CLI Consistency Update**
+  ```bash
+  rtimelogger list --period 2025-06
+  rtimelogger list --period 2025-06-01:2025-06-10
+  rtimelogger list --period 2024:2025
+  ```
 
-- The top-level subcommand `conf` has been renamed to `config` to align naming conventions across all Rust CLI tools.
-    - Subcommands remain unchanged (`--print`, `--edit`, `--editor`).
-    - Corresponding handler renamed from `handle_conf` → `handle_config`.
-    - ⚠️ **Breaking change:** users must now call:
-      ```bash
-      rtimelogger config --print
-      ```
+**📆 Smarter Default for list**
 
-**🗂️ Resource Organization**
+- Running:
+  ```bash
+  rtimelogger list
+  ```
+  now shows the current month by default (instead of listing the whole history), unless:
+    - --period is provided
+    - --events is used
+    - --now is used
 
-- Added a new `res/` directory for graphical assets (SVG, PNG, ICO).
-- The build process automatically compiles and embeds these assets during `cargo build --release`.
+This greatly improves usability for day-to-day workflows.
 
-**🧹 Backup Improvements**
+**📤 Export Range Improvements**
 
-- When `--compress` is used, the uncompressed backup file (e.g. `my_db.sqlite.bck`) is automatically removed after a
-  successful compression.
-- A non-fatal warning is displayed if deletion fails.
+- The export --range option now supports the same extended date/range formats as --period.
+- This ensures consistency between listing and exporting sessions or events.
+
+**🛠 Improved Error Feedback for add (Issue #22)**
+
+- When typing an incorrect date or argument sequence (e.g. rtimelogger add r 2025…),
+  the CLI now displays:
+    - a clear error message
+    - a short usage guide
+    - example commands
+
+  This avoids the need to manually run rtimelogger add --help after mistakes.
 
 ---
 
@@ -200,10 +219,13 @@ rtimelogger add 2025-09-14 --pos H
 ### List sessions (legacy view)
 
 ```bash
-rtimelogger list                # all
-rtimelogger list --period 2025  # year
-rtimelogger list --period 2025-09  # year-month
-rtimelogger list --pos o        # position (case-insensitive)
+rtimelogger list                   # shows *current month* by default
+rtimelogger list --period 2025     # year
+rtimelogger list --period 2025-09  # month
+rtimelogger list --period 2025-09-15  # specific day
+rtimelogger list --period 2025-06-01:2025-06-10  # day range
+rtimelogger list --period 2025-06:2025-08        # month range
+rtimelogger list --pos o           # filter by position
 ```
 
 ### List raw events
@@ -213,6 +235,9 @@ rtimelogger list --events
 rtimelogger list --events --pos r          # filter by position
 rtimelogger list --events --pairs 2        # only pair 2 (per date)
 rtimelogger list --events --json           # raw JSON with pair & unmatched
+rtimelogger list --events --period 2025-06
+rtimelogger list --events --period 2025-06-01:2025-06-30
+rtimelogger list --events --period 2024:2025
 ```
 
 ### Summarize events per pair
@@ -306,30 +331,85 @@ Notes:
 You can export recorded events or aggregated work sessions to **CSV**, **JSON**, **XLSX**, or **PDF**.  
 The `export` subcommand supports date-range filtering with multiple formats and writes to an absolute output path.
 
+### 📅 Supported date formats for `--range` and `--period`
+
+| Input format            | Meaning      | Expanded range (start → end)           |
+|-------------------------|--------------|----------------------------------------|
+| `YYYY`                  | Full year    | `YYYY-01-01` → `YYYY-12-31`            |
+| `YYYY-MM`               | Full month   | `YYYY-MM-01` → `YYYY-MM-lastday`       |
+| `YYYY-MM-DD`            | Specific day | `YYYY-MM-DD` → `YYYY-MM-DD`            |
+| `YYYY:YYYY`             | Year range   | `YYYY-01-01` → `YYYY-12-31`            |
+| `YYYY-MM:YYYY-MM`       | Month range  | `start-month-01` → `end-month-lastday` |
+| `YYYY-MM-DD:YYYY-MM-DD` | Day range    | `start-day` → `end-day`                |
+
+> Note: All formats must use the **same pattern** on both sides of a range (e.g., `2025-06:2025-07`, not
+`2025-06:2025-07-10`).
+
 Examples:
 
 ```bash
-# Export all events as CSV to an absolute path
-rtimelogger export --format csv --file /absolute/path/events.csv --events
+# Export all events as CSV
+rtimelogger export --format csv --file /abs/path/events.csv --events
 
-# Export sessions as JSON for September 2025
-rtimelogger export --format json --file /absolute/path/sessions.json --sessions --range 2025-09
+# Export all sessions as JSON
+rtimelogger export --format json --file /abs/path/sessions.json --sessions
 
-# Export events for a specific day range using brace syntax
-rtimelogger export --format csv --file /absolute/path/sep28.csv --events --range 2025-02-{28..28}
 
-# Export sessions as XLSX to an absolute path
-rtimelogger export --format xlsx --file /absolute/path/sessions.xlsx --sessions
+# --- Single period formats ----------------------------------------------
 
-# Export events as PDF for October 2025
-rtimelogger export --format pdf --file /absolute/path/events.pdf --events --range 2025-10
+# Export full year 2025 (events)
+rtimelogger export --format csv --file /abs/path/2025-events.csv --events --range 2025
+
+# Export September 2025 sessions
+rtimelogger export --format json --file /abs/path/sep-2025-sessions.json --sessions --range 2025-09
+
+# Export a single specific day
+rtimelogger export --format csv --file /abs/path/day.csv --events --range 2025-06-01
+
+
+# --- Full range formats --------------------------------------------------
+
+# Export a year range: 2024–2025
+rtimelogger export --format json --file /abs/path/years.json --events --range 2024:2025
+
+# Export a month range: June to August 2025
+rtimelogger export --format csv --file /abs/path/summer.csv --sessions --range 2025-06:2025-08
+
+# Export a day range: 1–10 June 2025
+rtimelogger export --format csv --file /abs/path/days.csv --events --range 2025-06-01:2025-06-10
+
+
+# --- XLSX and PDF examples ----------------------------------------------
+
+# Export sessions to XLSX for March 2025
+rtimelogger export --format xlsx --file /abs/path/march.xlsx --sessions --range 2025-03
+
+# Export events to PDF for a whole year
+rtimelogger export --format pdf --file /abs/path/events-2024.pdf --events --range 2024
+
+
+# --- Mixed usage ---------------------------------------------------------
+
+# Export only events for a month range and overwrite file if needed
+rtimelogger export --format csv --file /abs/path/jun-jul.csv --events \
+    --range 2025-06:2025-07 --force
+
+# Export all sessions to XLSX for a specific day range
+rtimelogger export --format xlsx --file /abs/path/last-week.xlsx --sessions \
+    --range 2025-10-20:2025-10-24
 ```
 
 Notes:
 
-- `--range` supports: `YYYY` (whole year), `YYYY-MM` (month), and `YYYY-MM-{dd..dd}` (day range inside a month).
-- The output `--file` must be an absolute path. If the file exists the CLI will prompt for confirmation unless you
-  pass `--force` to overwrite without prompting.
+- `--range` supports:
+    - `YYYY` (full year)
+    - `YYYY-MM` (full month)
+    - `YYYY-MM-DD` (specific day)
+    - `YYYY:YYYY` (year range)
+    - `YYYY-MM:YYYY-MM` (month range)
+    - `YYYY-MM-DD:YYYY-MM-DD` (day range)
+- The output `--file` must be an absolute path.
+- If the output file already exists, the CLI prompts for confirmation unless `--force` is used.
 - Supported formats: `csv`, `json`, `xlsx`, `pdf`
 
 ---
