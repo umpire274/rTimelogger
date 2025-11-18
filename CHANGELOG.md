@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.7.0] - 2025-11-18
+
+### Added
+
+- **Extended period filtering for `list`**  
+  The `--period` option now supports advanced date formats and custom ranges:
+    - Single values:
+        - `YYYY` → full year
+        - `YYYY-MM` → full month
+        - `YYYY-MM-DD` → specific day
+    - Ranges (`start:end`) in matching formats:
+        - `YYYY:YYYY` → year range
+        - `YYYY-MM:YYYY-MM` → month range
+        - `YYYY-MM-DD:YYYY-MM-DD` → day range
+    - Example usage:
+        - `rtimelogger list --period 2025-06`
+        - `rtimelogger list --period 2025-06-01:2025-06-10`
+        - `rtimelogger list --period 2024:2025`
+
+- **Default period for `list`**  
+  Running `rtimelogger list` without any period or event filters now automatically shows the **current month**,
+  improving usability for daily workflows.
+
+- **Updated `export --range` option**  
+  `--range` now supports the exact same date formats and ranges as `--period`, ensuring consistency between listing and
+  exporting data.
+
+### Changed
+
+- Improved the help messages of `--period` and `export --range` with explicit descriptions and examples.
+- Refactored and extended the internal date-range parsing logic (`build_filtered_query`) to support year, month, day,
+  and custom ranges seamlessly for both sessions and events.
+
+### Fixed
+
+- Improved error handling for malformed `add` command input (Issue #22). When the user provides an invalid date or
+  incorrect positional argument order, the CLI now displays a concise usage guide and examples directly in the error
+  output, instead of only showing the validation error. This makes the `add` command more self-explanatory and avoids
+  the need to run `rtimelogger add --help` after every mistake.
+
+### Notes
+
+`v0.7.0` introduces a new unified and powerful time-range filtering system, greatly improving the user experience for
+querying and exporting historical data while keeping all previous usages backwards-compatible.
+
+---
+
 ## [0.6.6] - 2025-10-13
 
 ### Added

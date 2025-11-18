@@ -97,11 +97,50 @@ fn build_filtered_query(
     let mut params: Vec<String> = Vec::new();
 
     if let Some(p) = period {
-        if p.len() == 4 {
+        // Nuova sintassi: range con ":" → start:end
+        if let Some((start_raw, end_raw)) = p.split_once(':') {
+            let start = start_raw.trim();
+            let end = end_raw.trim();
+
+            if start.is_empty() || end.is_empty() || start.len() != end.len() {
+                return Err(rusqlite::Error::InvalidQuery);
+            }
+
+            match start.len() {
+                4 => {
+                    // Range di anni: es. "2024:2025"
+                    conditions.push("strftime('%Y', date) >= ?".to_string());
+                    conditions.push("strftime('%Y', date) <= ?".to_string());
+                    params.push(start.to_string());
+                    params.push(end.to_string());
+                }
+                7 => {
+                    // Range di mesi: es. "2025-01:2025-03"
+                    conditions.push("strftime('%Y-%m', date) >= ?".to_string());
+                    conditions.push("strftime('%Y-%m', date) <= ?".to_string());
+                    params.push(start.to_string());
+                    params.push(end.to_string());
+                }
+                10 => {
+                    // Range di giorni: es. "2025-06-01:2025-06-30"
+                    conditions.push("date >= ?".to_string());
+                    conditions.push("date <= ?".to_string());
+                    params.push(start.to_string());
+                    params.push(end.to_string());
+                }
+                _ => return Err(rusqlite::Error::InvalidQuery),
+            }
+        } else if p.len() == 4 {
+            // Solo anno: "2025"
             conditions.push("strftime('%Y', date) = ?".to_string());
             params.push(p.to_string());
         } else if p.len() == 7 {
+            // Solo mese: "2025-06"
             conditions.push("strftime('%Y-%m', date) = ?".to_string());
+            params.push(p.to_string());
+        } else if p.len() == 10 {
+            // Giorno singolo: "2025-06-01"
+            conditions.push("date = ?".to_string());
             params.push(p.to_string());
         } else {
             return Err(rusqlite::Error::InvalidQuery);
