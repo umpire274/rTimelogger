@@ -1,7 +1,5 @@
-use assert_cmd::Command;
-
 mod common;
-use common::setup_test_db;
+use common::{rti, setup_test_db};
 
 // Ensure that when multiple events remain with the same position, work_sessions position
 // is updated to that single position and end_time is the max remaining time.
@@ -10,15 +8,13 @@ fn test_recompute_sets_single_position_and_end() {
     let db_path = setup_test_db("pos_recompute_single");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Pair 1: R 08:35 - 17:00
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -34,8 +30,7 @@ fn test_recompute_sets_single_position_and_end() {
         .success();
 
     // Pair 2: C 17:45 - 20:00
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -51,8 +46,7 @@ fn test_recompute_sets_single_position_and_end() {
         .success();
 
     // Delete pair 2
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -88,15 +82,13 @@ fn test_recompute_robustness_multiple_runs() {
         let db_path = setup_test_db(&format!("pos_recompute_robust_{i}"));
 
         // Init DB
-        Command::cargo_bin("rtimelogger")
-            .unwrap()
+        rti()
             .args(["--db", &db_path, "--test", "init"])
             .assert()
             .success();
 
         // Pair 1: R 08:00 - 09:00
-        Command::cargo_bin("rtimelogger")
-            .unwrap()
+        rti()
             .args([
                 "--db",
                 &db_path,
@@ -112,8 +104,7 @@ fn test_recompute_robustness_multiple_runs() {
             .success();
 
         // Pair 2: O 10:00 - 11:00
-        Command::cargo_bin("rtimelogger")
-            .unwrap()
+        rti()
             .args([
                 "--db",
                 &db_path,
@@ -129,8 +120,7 @@ fn test_recompute_robustness_multiple_runs() {
             .success();
 
         // Pair 3: C 12:00 - 13:00
-        Command::cargo_bin("rtimelogger")
-            .unwrap()
+        rti()
             .args([
                 "--db",
                 &db_path,
@@ -163,8 +153,7 @@ fn test_recompute_robustness_multiple_runs() {
         assert_eq!(end_before, "13:00");
 
         // Delete pair 2 (the middle one with position O)
-        Command::cargo_bin("rtimelogger")
-            .unwrap()
+        rti()
             .args([
                 "--db",
                 &db_path,

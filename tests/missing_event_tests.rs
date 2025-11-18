@@ -1,6 +1,8 @@
-use assert_cmd::Command;
 use std::env;
 use std::path::PathBuf;
+
+mod common;
+use common::rti;
 
 /// Create a unique test DB path inside the system temp dir
 fn setup_test_db(name: &str) -> String {
@@ -16,22 +18,19 @@ fn test_create_missing_in_when_only_out_exists() {
     let db_path = setup_test_db("missing_event_in");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Create only an OUT event for the date (no start)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "add", "2025-10-01", "--out", "17:00"])
         .assert()
         .success();
 
     // Verify there is a single OUT event
-    let out_only = Command::cargo_bin("rtimelogger")
-        .unwrap()
+    let out_only = rti()
         .args(["--db", &db_path, "--test", "list", "--events"])
         .output()
         .expect("failed to list events (out-only)");
@@ -60,8 +59,7 @@ fn test_create_missing_in_when_only_out_exists() {
     );
 
     // Add the missing IN event
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -77,8 +75,7 @@ fn test_create_missing_in_when_only_out_exists() {
         .success();
 
     // Re-list events and expect both IN and OUT
-    let both = Command::cargo_bin("rtimelogger")
-        .unwrap()
+    let both = rti()
         .args(["--db", &db_path, "--test", "list", "--events"])
         .output()
         .expect("failed to list events (after creating in)");

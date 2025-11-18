@@ -1,8 +1,10 @@
-use assert_cmd::Command;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use std::env;
 use std::path::PathBuf;
+
+mod common;
+use common::rti;
 
 /// Create a unique test DB path inside the system temp dir
 fn setup_test_db(name: &str) -> String {
@@ -20,16 +22,14 @@ fn setup_test_db(name: &str) -> String {
 
 #[test]
 fn test_list_sessions_all() {
-    let db_path = setup_test_db("all");
+    let db_path = setup_test_db("export_events_csv_all");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -43,8 +43,7 @@ fn test_list_sessions_all() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -58,8 +57,7 @@ fn test_list_sessions_all() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -73,9 +71,8 @@ fn test_list_sessions_all() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "list"])
+    rti()
+        .args(["--db", &db_path, "list", "--period", "2024-09:2025-09"])
         .assert()
         .success()
         .stdout(contains("2025-08-31"))
@@ -87,14 +84,12 @@ fn test_list_sessions_all() {
 fn test_list_sessions_filter_year() {
     let db_path = setup_test_db("year");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -108,8 +103,7 @@ fn test_list_sessions_filter_year() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -123,8 +117,7 @@ fn test_list_sessions_filter_year() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -138,8 +131,7 @@ fn test_list_sessions_filter_year() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "list", "--period", "2025"])
         .assert()
         .success()
@@ -157,14 +149,12 @@ fn test_list_sessions_filter_year() {
 fn test_list_sessions_filter_year_month() {
     let db_path = setup_test_db("year_month");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -178,8 +168,7 @@ fn test_list_sessions_filter_year_month() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -193,8 +182,7 @@ fn test_list_sessions_filter_year_month() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -208,8 +196,7 @@ fn test_list_sessions_filter_year_month() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -223,8 +210,7 @@ fn test_list_sessions_filter_year_month() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "list", "--period", "2025-09"])
         .assert()
         .success()
@@ -248,15 +234,13 @@ fn test_list_sessions_filter_position() {
     let db_path = setup_test_db("filter_position");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add Office (O)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -272,8 +256,7 @@ fn test_list_sessions_filter_position() {
         .success();
 
     // Add Remote (R)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -289,16 +272,16 @@ fn test_list_sessions_filter_position() {
         .success();
 
     // Add Holiday (H)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "add", "2025-09-12", "H"])
         .assert()
         .success();
 
     // Filter O
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "--test", "list", "--pos", "O"])
+    rti()
+        .args([
+            "--db", &db_path, "--test", "list", "--period", "2025-09", "--pos", "O",
+        ])
         .assert()
         .success()
         .stdout(contains("2025-09-10"))
@@ -307,9 +290,10 @@ fn test_list_sessions_filter_position() {
         .stdout(contains("2025-09-12").not());
 
     // Filter R
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "--test", "list", "--pos", "R"])
+    rti()
+        .args([
+            "--db", &db_path, "--test", "list", "--period", "2025-09", "--pos", "R",
+        ])
         .assert()
         .success()
         .stdout(contains("2025-09-11"))
@@ -318,9 +302,10 @@ fn test_list_sessions_filter_position() {
         .stdout(contains("2025-09-12").not());
 
     // Filter H
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "--test", "list", "--pos", "H"])
+    rti()
+        .args([
+            "--db", &db_path, "--test", "list", "--period", "2025-09", "--pos", "H",
+        ])
         .assert()
         .success()
         .stdout(contains("2025-09-12"))
@@ -333,14 +318,12 @@ fn test_list_sessions_filter_position() {
 fn test_list_sessions_invalid_period() {
     let db_path = setup_test_db("invalid_period");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -354,8 +337,7 @@ fn test_list_sessions_invalid_period() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "list", "--period", "2025-9"])
         .assert()
         .failure()
@@ -367,15 +349,13 @@ fn test_add_and_list_with_company_position() {
     let db_path = setup_test_db("with_company_position");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add a session in company mode (A), crossing lunch window but without specifying lunch
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -390,9 +370,8 @@ fn test_add_and_list_with_company_position() {
         .success();
 
     // List should show Pos A and Lunch 30 min (auto-applied)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "list"])
+    rti()
+        .args(["--db", &db_path, "list", "--period", "2025-09-14"])
         .assert()
         .success()
         .stdout(contains("Office"))
@@ -406,15 +385,13 @@ fn test_add_and_list_with_remote_position_lunch_zero() {
     let db_path = setup_test_db("with_remote_position_lunch_zero");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add a session in remote mode (R), crossing lunch window, no lunch specified
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -429,9 +406,8 @@ fn test_add_and_list_with_remote_position_lunch_zero() {
         .success();
 
     // List should show Pos R and Lunch 0 min (allowed)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "list"])
+    rti()
+        .args(["--db", &db_path, "list", "--period", "2025-09-15"])
         .assert()
         .success()
         .stdout(contains("Remote"))
@@ -443,23 +419,20 @@ fn test_add_and_list_incomplete_session() {
     let db_path = setup_test_db("incomplete_session");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add only start time (no end)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "add", "2025-09-16", "O", "09:00"])
         .assert()
         .success();
 
     // List should show Pos A and Start 09:00 but End "-"
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "list"])
+    rti()
+        .args(["--db", &db_path, "list", "--period", "2025-09-16"])
         .assert()
         .success()
         .stdout(contains("Office"))
@@ -472,15 +445,13 @@ fn test_add_and_list_holiday_position() {
     let db_path = setup_test_db("holiday_position");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Adding a day with Holiday position
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -495,9 +466,8 @@ fn test_add_and_list_holiday_position() {
         .stdout(contains("Position Holiday"));
 
     // List should show 'Holiday' as position and no more data's
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "--test", "list"])
+    rti()
+        .args(["--db", &db_path, "--test", "list", "--period", "2025-09-21"])
         .assert()
         .success()
         .stdout(contains("Holiday"));
@@ -517,8 +487,7 @@ fn test_list_sessions_positions_with_colors() {
         let db_path = setup_test_db(&format!("pos_{}", pos));
 
         // Init DB
-        Command::cargo_bin("rtimelogger")
-            .unwrap()
+        rti()
             .args(["--db", &db_path, "--test", "init"])
             .assert()
             .success();
@@ -529,16 +498,13 @@ fn test_list_sessions_positions_with_colors() {
             args.extend(&["09:00", "30", "17:00"]);
         }
 
-        Command::cargo_bin("rtimelogger")
-            .unwrap()
-            .args(&args)
-            .assert()
-            .success();
+        rti().args(&args).assert().success();
 
         // List filtrato per posizione → deve contenere label e colore
-        Command::cargo_bin("rtimelogger")
-            .unwrap()
-            .args(["--db", &db_path, "--test", "list", "--pos", pos])
+        rti()
+            .args([
+                "--db", &db_path, "--test", "list", "--period", "2025-09", "--pos", pos,
+            ])
             .assert()
             .success()
             .stdout(contains(label))
@@ -551,15 +517,13 @@ fn test_add_and_delete_session() {
     let db_path = setup_test_db("delete_session");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add a session
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -575,16 +539,14 @@ fn test_add_and_delete_session() {
         .success();
 
     // Verify session is listed
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "--test", "list"])
+    rti()
+        .args(["--db", &db_path, "--test", "list", "--period", "2025-09-20"])
         .assert()
         .success()
         .stdout(contains("2025-09-20"));
 
     // Delete by date (new behavior) -- answer 'y' to confirmation prompt
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "del", "2025-09-20"])
         .write_stdin("y\n")
         .assert()
@@ -592,9 +554,8 @@ fn test_add_and_delete_session() {
         .stdout(contains("Deleted").or(contains("deleted")));
 
     // Verify session no longer appears in list
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "--test", "list"])
+    rti()
+        .args(["--db", &db_path, "--test", "list", "--period", "2025-09-20"])
         .assert()
         .success()
         .stdout(contains("2025-09-20").not());
@@ -605,15 +566,13 @@ fn test_delete_nonexistent_session() {
     let db_path = setup_test_db("delete_nonexistent");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Try to delete a date that does not exist: confirm with 'y' and expect 0 rows deleted
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "del", "2099-01-01"])
         .write_stdin("y\n")
         .assert()
@@ -626,15 +585,13 @@ fn test_separator_after_month_end() {
     let db_path = setup_test_db("separator_month_end");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add last day of September and first day of October
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -648,8 +605,7 @@ fn test_separator_after_month_end() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -666,9 +622,8 @@ fn test_separator_after_month_end() {
     // List and assert separator (25 '-' characters) is present after the 2025-09-30 line
     let sep25 = "-".repeat(25);
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
-        .args(["--db", &db_path, "list"])
+    rti()
+        .args(["--db", &db_path, "list", "--period", "2025-09"])
         .assert()
         .success()
         .stdout(contains("2025-09-30"))
@@ -680,15 +635,13 @@ fn test_list_events_filter_position_case_insensitive() {
     let db_path = setup_test_db("events_pos_case");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add Remote (R) session which creates two events (in/out)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -704,8 +657,7 @@ fn test_list_events_filter_position_case_insensitive() {
         .success();
 
     // Add Office (O) session
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -721,8 +673,7 @@ fn test_list_events_filter_position_case_insensitive() {
         .success();
 
     // List events filtering with lowercase 'r' to verify case-insensitive normalization
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "list", "--events", "--pos", "r"])
         .assert()
         .success()
@@ -735,15 +686,13 @@ fn test_events_pair_column_and_grouping() {
     let db_path = setup_test_db("events_pair_col");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Prima sessione (in/out)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -759,8 +708,7 @@ fn test_events_pair_column_and_grouping() {
         .success();
 
     // Seconda sessione (in/out)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -776,8 +724,7 @@ fn test_events_pair_column_and_grouping() {
         .success();
 
     // Lista eventi e verifica intestazione Pair e presenza dei pair id 1 e 2
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "list", "--events", "--pos", "R"])
         .assert()
         .success()
@@ -791,15 +738,13 @@ fn test_delete_existing_pair() {
     let db_path = setup_test_db("delete_existing_pair");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Pair 1 (09:00-12:00)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -815,8 +760,7 @@ fn test_delete_existing_pair() {
         .success();
 
     // Pair 2 (13:00-17:00)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -832,8 +776,7 @@ fn test_delete_existing_pair() {
         .success();
 
     // Delete pair 1 (confirm 'y')
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -849,8 +792,7 @@ fn test_delete_existing_pair() {
         .stdout(contains("Deleted").or(contains("deleted")));
 
     // List events and ensure pair1 times are gone, pair2 remains
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "list", "--events"])
         .assert()
         .success()
@@ -865,15 +807,13 @@ fn test_delete_nonexistent_pair() {
     let db_path = setup_test_db("delete_nonexistent_pair");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add a single pair (so pair id 1 exists)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -889,8 +829,7 @@ fn test_delete_nonexistent_pair() {
         .success();
 
     // Try to delete a non-existent pair 5 on that date
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -910,15 +849,13 @@ fn test_delete_pair_updates_work_session() {
     let db_path = setup_test_db("delete_pair_updates_ws");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Pair 1: R 08:35 - 17:00 with 30 lunch
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -934,8 +871,7 @@ fn test_delete_pair_updates_work_session() {
         .success();
 
     // Pair 2: C 17:45 - 20:00
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -951,8 +887,7 @@ fn test_delete_pair_updates_work_session() {
         .success();
 
     // Delete pair 2
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -986,15 +921,13 @@ fn test_delete_pair_with_mixed_positions_leaves_position_unchanged() {
     let db_path = setup_test_db("delete_pair_mixed_positions");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Pair 1: R 08:00 - 09:00
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -1010,8 +943,7 @@ fn test_delete_pair_with_mixed_positions_leaves_position_unchanged() {
         .success();
 
     // Pair 2: O 10:00 - 11:00
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -1027,8 +959,7 @@ fn test_delete_pair_with_mixed_positions_leaves_position_unchanged() {
         .success();
 
     // Pair 3: C 12:00 - 13:00
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -1061,8 +992,7 @@ fn test_delete_pair_with_mixed_positions_leaves_position_unchanged() {
     assert_eq!(end_before, "13:00");
 
     // Delete pair 2 (the middle one with position O) -> remaining positions are R and C (mixed)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,

@@ -1,7 +1,7 @@
 mod common;
+
 use crate::common::populate_many_sessions;
-use assert_cmd::Command;
-use common::{init_db_with_data, setup_test_db, temp_out};
+use common::{init_db_with_data, rti, setup_test_db, temp_out};
 use serde_json::Value;
 use std::fs;
 use std::time::Instant;
@@ -12,15 +12,13 @@ fn test_export_day_range_brace() {
     let db_path = setup_test_db("export_day_range");
 
     // init db
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // add sessions on two February dates (non-leap year 2025)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -34,8 +32,7 @@ fn test_export_day_range_brace() {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -52,8 +49,7 @@ fn test_export_day_range_brace() {
     let out = temp_out("export_day_range", "json");
 
     // export only the 28th using brace syntax
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -64,7 +60,7 @@ fn test_export_day_range_brace() {
             &out,
             "--events",
             "--range",
-            "2025-02-{28..28}",
+            "2025-02-28:2025-02-28",
         ])
         .assert()
         .success();
@@ -81,8 +77,7 @@ fn test_export_empty_dataset() {
     let db_path = setup_test_db("export_empty_dataset");
 
     // init only, do not add any data
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
@@ -91,8 +86,7 @@ fn test_export_empty_dataset() {
     let out_csv = temp_out("export_empty_dataset", "csv");
 
     // JSON export events
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "json", "--file", &out_json, "--events",
         ])
@@ -105,8 +99,7 @@ fn test_export_empty_dataset() {
     assert!(v.as_array().unwrap().is_empty());
 
     // CSV export events
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "csv", "--file", &out_csv, "--events",
         ])
@@ -122,6 +115,7 @@ fn test_export_empty_dataset() {
 #[test]
 fn test_export_json_structure_and_csv_columns() {
     let db_path = setup_test_db("export_structure");
+
     // populate via existing helper (adds 2 sessions)
     init_db_with_data(&db_path);
 
@@ -129,8 +123,7 @@ fn test_export_json_structure_and_csv_columns() {
     let out_csv = temp_out("export_structure", "csv");
 
     // Export JSON events
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "json", "--file", &out_json, "--events",
         ])
@@ -151,8 +144,7 @@ fn test_export_json_structure_and_csv_columns() {
     }
 
     // Export CSV events
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "csv", "--file", &out_csv, "--events",
         ])
@@ -174,14 +166,14 @@ fn test_export_json_structure_and_csv_columns() {
 #[test]
 fn test_export_performance_smoke() {
     let db_path = setup_test_db("export_perf");
+
     // populate many sessions directly via DB API
     populate_many_sessions(&db_path, 2000);
 
     let out = temp_out("export_perf", "csv");
     let start = Instant::now();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,

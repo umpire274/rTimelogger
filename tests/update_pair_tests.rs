@@ -1,6 +1,8 @@
-use assert_cmd::Command;
 use std::env;
 use std::path::PathBuf;
+
+mod common;
+use common::rti;
 
 /// Create a unique test DB path inside the system temp dir
 fn setup_test_db(name: &str) -> String {
@@ -16,15 +18,13 @@ fn test_update_does_not_create_new_pair() {
     let db_path = setup_test_db("update_pair");
 
     // Init DB
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", &db_path, "--test", "init"])
         .assert()
         .success();
 
     // Add initial full session (IN + OUT)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -39,8 +39,7 @@ fn test_update_does_not_create_new_pair() {
         .success();
 
     // Capture initial list output
-    let initial_output = Command::cargo_bin("rtimelogger")
-        .unwrap()
+    let initial_output = rti()
         .args(["--db", &db_path, "--test", "list", "--events"])
         .output()
         .expect("failed to list events (initial)");
@@ -66,8 +65,7 @@ fn test_update_does_not_create_new_pair() {
     );
 
     // Update ONLY start time via explicit edit (pair 1)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -83,8 +81,7 @@ fn test_update_does_not_create_new_pair() {
         .success();
 
     // Update ONLY end time via explicit edit (pair 1)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -100,8 +97,7 @@ fn test_update_does_not_create_new_pair() {
         .success();
 
     // Update ONLY lunch via explicit edit (pair 1)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -117,8 +113,7 @@ fn test_update_does_not_create_new_pair() {
         .success();
 
     // Re-capture events after updates
-    let final_output = Command::cargo_bin("rtimelogger")
-        .unwrap()
+    let final_output = rti()
         .args(["--db", &db_path, "--test", "list", "--events"])
         .output()
         .expect("failed to list events (final)");
