@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.1] - 2025-11-18
+
+### Added
+
+- Official **Debian (.deb) package** generation using `cargo-deb`.  
+  A `.deb` package is now automatically built, signed, and included in every release.
+
+### Changed
+
+- Updated CI pipeline to integrate `.deb` production on Linux (`ubuntu-latest`).
+- Improved artifact handling and release asset organization across platforms.
+
+### Fixed
+
+- Ensured consistent SHA256 and GPG signature generation for all package formats.
+
+---
+
 ## [0.7.0] - 2025-11-18
 
 ### Added

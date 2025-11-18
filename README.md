@@ -14,59 +14,22 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-## **What's new in 0.7.0**
+### ✨ New in v0.7.1
 
-**📅 Advanced Period Filtering**
+**📦 Official Debian package support**
 
-- The `--period` option of the `list` command now supports:
-    - YYYY → full year
-    - YYYY-MM → full month
-    - YYYY-MM-DD → specific day
-    - Custom ranges using start:end:
-        - YYYY:YYYY → year range
-        - YYYY-MM:YYYY-MM → month range
-        - YYYY-MM-DD:YYYY-MM-DD → day range
-- Examples:
+rFortune now ships with an official `.deb` **package** for Debian/Ubuntu-based Linux distributions.
+The `.deb` is automatically built, signed, and included in every GitHub Release.
 
-  ```bash
-  rtimelogger list --period 2025-06
-  rtimelogger list --period 2025-06-01:2025-06-10
-  rtimelogger list --period 2024:2025
-  ```
+- Fully integrated into the CI workflow
+- Includes GPG signature and SHA256 checksum
+- Enables easy installation via `dpkg -i`
 
-**📆 Smarter Default for list**
+**⚙️ Improved Release Artifacts**
 
-- Running:
-  ```bash
-  rtimelogger list
-  ```
-    - now shows the current month by default (instead of listing the whole history), unless:
-        - --period is provided
-        - --events is used
-        - --now is used
-
-**🗓 Full Archive Listing**
-
-- Added support for `list --period all`, allowing users to display all sessions or all events without applying date
-  filters.
-
-This greatly improves usability for day-to-day workflows.
-
-**📤 Export Range Improvements**
-
-- The export --range option now supports the same extended date/range formats as --period.
-- This ensures consistency between listing and exporting sessions or events.
-- Added support for `export --range all`, which exports the entire archive without applying date filters.
-
-**🛠 Improved Error Feedback for add (Issue #22)**
-
-- When typing an incorrect date or argument sequence (e.g. rtimelogger add r 2025…),
-  the CLI now displays:
-    - a clear error message
-    - a short usage guide
-    - example commands
-
-  This avoids the need to manually run rtimelogger add --help after mistakes.
+- Unified handling of Linux, macOS, and Windows builds
+- Improved consistency for SHA256 checksums and signature generation
+- Better Linux distribution support (Debian/Ubuntu + generic tarball)
 
 ---
 
