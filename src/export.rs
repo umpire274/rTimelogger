@@ -143,8 +143,13 @@ pub fn handle_export(cmd: &Commands, conn: &Connection) -> Result<(), Box<dyn Er
         // new check
         ensure_writable(path, *force)?;
 
+        // Interpret --range all → no date filtering
         let date_bounds: Option<(String, String)> = if let Some(r) = range.as_deref() {
-            Some(parse_range(r).map_err(|e| format!("invalid --range: {e}"))?)
+            if r.eq_ignore_ascii_case("all") {
+                None
+            } else {
+                Some(parse_range(r).map_err(|e| format!("invalid --range: {e}"))?)
+            }
         } else {
             None
         };
