@@ -112,10 +112,14 @@ pub enum Commands {
         /// - YYYY-MM:YYYY-MM      → month range          (e.g. "2025-06:2025-08")
         /// - YYYY-MM-DD:YYYY-MM-DD→ day range           (e.g. "2025-06-01:2025-06-10")
         ///
+        /// Special value:
+        /// - all                   → show the entire archive (bypass date filtering)
+        ///
         /// Examples:
         ///   rtimelogger list --period 2025-06
         ///   rtimelogger list --period 2025-06-01:2025-06-10
         ///   rtimelogger list --period 2024:2025
+        ///   rtimelogger list --period all
         ///
         /// If omitted, the default is *current month* unless --now or --events is used.
         #[arg(
@@ -192,10 +196,14 @@ pub enum Commands {
         /// - YYYY-MM:YYYY-MM      → month range          (e.g. "2025-06:2025-08")
         /// - YYYY-MM-DD:YYYY-MM-DD→ day range           (e.g. "2025-06-01:2025-06-30")
         ///
+        /// Special value:
+        /// - all                   → show the entire archive (bypass date filtering)
+        ///
         /// Examples:
         ///   rtimelogger export --sessions --range 2025-06
         ///   rtimelogger export --sessions --range 2025-06-01:2025-06-10
         ///   rtimelogger export --events   --range 2024:2025
+        ///   rtimelogger export --sessions --range all
         ///
         /// If omitted, all records in the database are exported.
         #[arg(

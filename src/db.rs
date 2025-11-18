@@ -274,6 +274,25 @@ pub fn list_sessions(
     period: Option<&str>,
     pos: Option<&str>,
 ) -> Result<Vec<WorkSession>> {
+    // NEW: support for --period all
+    if let Some("all") = period {
+        let mut sql =
+            "SELECT id, date, position, start_time, lunch_break, end_time FROM work_sessions"
+                .to_string();
+
+        let mut owned_params: Vec<String> = Vec::new();
+        let mut param_refs: Vec<&dyn ToSql> = Vec::new();
+
+        apply_position_filter(&mut sql, pos, &mut owned_params, &mut param_refs);
+
+        sql.push_str(" ORDER BY date ASC");
+
+        let mut stmt = conn.prepare_cached(&sql)?;
+        let rows = stmt.query_map(param_refs.as_slice(), row_to_worksession)?;
+        return rows.collect::<Result<Vec<_>, _>>();
+    }
+
+    // DEFAULT PATH (filtered)
     let base_query =
         "SELECT id, date, position, start_time, lunch_break, end_time FROM work_sessions";
     let (mut query, params) = build_filtered_query(base_query, period, pos)?;
@@ -403,12 +422,46 @@ pub fn list_events(conn: &Connection) -> Result<Vec<Event>> {
     rows.collect::<Result<Vec<_>, _>>()
 }
 
+/// Append a position filter to SQL query while safely managing lifetimes.
+/// Stores the uppercase copy into owned_params so references remain valid.
+fn apply_position_filter<'a>(
+    sql: &mut String,
+    pos: Option<&str>,
+    owned_params: &'a mut Vec<String>,
+    param_refs: &mut Vec<&'a dyn ToSql>,
+) {
+    if let Some(p) = pos {
+        let upper = p.to_uppercase();
+        sql.push_str(" WHERE position = ?1");
+        owned_params.push(upper);
+        param_refs.push(&owned_params[owned_params.len() - 1]);
+    }
+}
+
 /// List events filtered by optional period (YYYY or YYYY-MM) and position
 pub fn list_events_filtered(
     conn: &Connection,
     period: Option<&str>,
     pos: Option<&str>,
 ) -> Result<Vec<Event>> {
+    // NEW: support for --period all
+    if let Some("all") = period {
+        let mut sql = "SELECT id, date, time, kind, position, lunch_break, pair, source, meta, created_at FROM events"
+            .to_string();
+
+        let mut owned_params: Vec<String> = Vec::new();
+        let mut param_refs: Vec<&dyn ToSql> = Vec::new();
+
+        apply_position_filter(&mut sql, pos, &mut owned_params, &mut param_refs);
+
+        sql.push_str(" ORDER BY date ASC, time ASC");
+
+        let mut stmt = conn.prepare_cached(&sql)?;
+        let rows = stmt.query_map(param_refs.as_slice(), row_to_event)?;
+        return rows.collect::<Result<Vec<_>, _>>();
+    }
+
+    // DEFAULT PATH (filtered)
     let base_query = "SELECT id, date, time, kind, position, lunch_break, pair, source, meta, created_at FROM events";
     let (mut query, params) = build_filtered_query(base_query, period, pos)?;
 
@@ -417,6 +470,7 @@ pub fn list_events_filtered(
     let mut stmt = conn.prepare_cached(&query)?;
     let param_refs: Vec<&dyn ToSql> = params.iter().map(|s| s as &dyn ToSql).collect();
     let rows = stmt.query_map(param_refs.as_slice(), row_to_event)?;
+
     rows.collect::<Result<Vec<_>, _>>()
 }
 
