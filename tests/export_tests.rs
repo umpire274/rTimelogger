@@ -1,6 +1,5 @@
 mod common;
-use assert_cmd::Command;
-use common::{init_db_with_data, setup_test_db, temp_out};
+use common::{init_db_with_data, rti, setup_test_db, temp_out};
 use std::fs;
 
 #[test]
@@ -10,8 +9,7 @@ fn test_export_events_csv_all() {
 
     let out = temp_out("export_events_csv_all", "csv");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "csv", "--file", &out, "--events",
         ])
@@ -30,8 +28,7 @@ fn test_export_events_json_range() {
 
     let out = temp_out("export_events_json_range", "json");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "json", "--file", &out, "--events", "--range",
             "2025-09",
@@ -51,8 +48,7 @@ fn test_export_sessions_csv_range() {
 
     let out = temp_out("export_sessions_csv_range", "csv");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,
@@ -79,8 +75,7 @@ fn test_export_sessions_json_all() {
 
     let out = temp_out("export_sessions_json_all", "json");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             &db_path,

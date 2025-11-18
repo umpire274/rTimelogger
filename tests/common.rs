@@ -1,9 +1,13 @@
 #![allow(dead_code)]
 
-use assert_cmd::Command;
+use assert_cmd::{Command, cargo_bin_cmd};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+
+pub fn rti() -> Command {
+    cargo_bin_cmd!("rtimelogger")
+}
 
 /// Create a unique test DB path inside the system temp dir and remove any existing file
 pub fn setup_test_db(name: &str) -> String {
@@ -26,15 +30,13 @@ pub fn temp_out(name: &str, ext: &str) -> String {
 /// Initialize DB and add a small dataset useful for many tests
 pub fn init_db_with_data(db_path: &str) {
     // init DB (creates tables)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args(["--db", db_path, "--test", "init"]) // uses --test init to create schema
         .assert()
         .success();
 
-    // add couple of sessions via CLI (which will also populate events)
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    // add a couple of sessions via CLI (which will also populate events)
+    rti()
         .args([
             "--db",
             db_path,
@@ -48,8 +50,7 @@ pub fn init_db_with_data(db_path: &str) {
         .assert()
         .success();
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db",
             db_path,

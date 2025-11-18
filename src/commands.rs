@@ -1,6 +1,6 @@
 use crate::Cli;
 use crate::Commands;
-use chrono::NaiveTime;
+use chrono::{Datelike, NaiveTime};
 use rtimelogger::config::Config;
 use rtimelogger::events::create_missing_event;
 use rtimelogger::utils::{
@@ -255,10 +255,23 @@ pub fn handle_add(cmd: &Commands, conn: &mut Connection, config: &Config) -> rus
     {
         // validate date
         if chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() {
-            eprintln!(
-                "\u{274c} Invalid date format: {} (expected YYYY-MM-DD)",
-                date
-            );
+            eprintln!("❌ Invalid date format: {} (expected YYYY-MM-DD)\n", date);
+
+            // Mini-help automatico
+            eprintln!("Usage:");
+            eprintln!("  rtimelogger add <DATE> [<POS>] [<START>] [<LUNCH>] [<END>]\n");
+            eprintln!("Positional arguments:");
+            eprintln!("  DATE        Work date in format YYYY-MM-DD");
+            eprintln!("  POS         O=Office, R=Remote, H=Holiday, C=On-Site Client");
+            eprintln!("  START       Start time in HH:MM");
+            eprintln!("  LUNCH       Lunch break minutes (0–90)");
+            eprintln!("  END         End time in HH:MM\n");
+
+            eprintln!("Examples:");
+            eprintln!("  rtimelogger add 2025-10-11 O 08:55 30 17:10");
+            eprintln!("  rtimelogger add 2025-10-11 --pos O --in 08:55 --lunch 30 --out 17:10");
+            eprintln!("  rtimelogger add 2025-10-11 --edit --pair 1 --in 09:00\n");
+
             return Ok(());
         }
 
@@ -621,6 +634,17 @@ pub fn handle_list(
     conn: &Connection,
     config: &Config,
 ) -> rusqlite::Result<()> {
+    // Calcola il "periodo effettivo":
+    // - Se viene usato --now → ignoriamo il periodo e lavoriamo solo su oggi
+    // - Se NON viene usato --now, NON viene usato --events e manca --period,
+    //   allora di default usiamo il mese corrente (YYYY-MM).
+    let mut effective_period = args.period.clone();
+
+    if !args.now && !args.events && effective_period.is_none() {
+        let today = chrono::Local::now().date_naive();
+        effective_period = Some(format!("{:04}-{:02}", today.year(), today.month()));
+    }
+
     if args.now {
         // Get today's date in YYYY-MM-DD
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -812,7 +836,7 @@ pub fn handle_list(
     // not `now`: if --events present, list all events; otherwise list work_sessions (legacy)
     if args.events {
         let events_all =
-            db::list_events_filtered(conn, args.period.as_deref(), args.pos.as_deref())?;
+            db::list_events_filtered(conn, effective_period.as_deref(), args.pos.as_deref())?;
         if events_all.is_empty() {
             println!("No events recorded.");
             return Ok(());
@@ -844,7 +868,7 @@ pub fn handle_list(
         return Ok(());
     }
 
-    handle_list_with_highlight(args.period.clone(), args.pos.clone(), conn, config, None)
+    handle_list_with_highlight(effective_period, args.pos.clone(), conn, config, None)
 }
 
 /// New version: supports printing with `highlight_id: Option<i32>`

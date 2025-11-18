@@ -97,11 +97,50 @@ fn build_filtered_query(
     let mut params: Vec<String> = Vec::new();
 
     if let Some(p) = period {
-        if p.len() == 4 {
+        // Nuova sintassi: range con ":" → start:end
+        if let Some((start_raw, end_raw)) = p.split_once(':') {
+            let start = start_raw.trim();
+            let end = end_raw.trim();
+
+            if start.is_empty() || end.is_empty() || start.len() != end.len() {
+                return Err(rusqlite::Error::InvalidQuery);
+            }
+
+            match start.len() {
+                4 => {
+                    // Range di anni: es. "2024:2025"
+                    conditions.push("strftime('%Y', date) >= ?".to_string());
+                    conditions.push("strftime('%Y', date) <= ?".to_string());
+                    params.push(start.to_string());
+                    params.push(end.to_string());
+                }
+                7 => {
+                    // Range di mesi: es. "2025-01:2025-03"
+                    conditions.push("strftime('%Y-%m', date) >= ?".to_string());
+                    conditions.push("strftime('%Y-%m', date) <= ?".to_string());
+                    params.push(start.to_string());
+                    params.push(end.to_string());
+                }
+                10 => {
+                    // Range di giorni: es. "2025-06-01:2025-06-30"
+                    conditions.push("date >= ?".to_string());
+                    conditions.push("date <= ?".to_string());
+                    params.push(start.to_string());
+                    params.push(end.to_string());
+                }
+                _ => return Err(rusqlite::Error::InvalidQuery),
+            }
+        } else if p.len() == 4 {
+            // Solo anno: "2025"
             conditions.push("strftime('%Y', date) = ?".to_string());
             params.push(p.to_string());
         } else if p.len() == 7 {
+            // Solo mese: "2025-06"
             conditions.push("strftime('%Y-%m', date) = ?".to_string());
+            params.push(p.to_string());
+        } else if p.len() == 10 {
+            // Giorno singolo: "2025-06-01"
+            conditions.push("date = ?".to_string());
             params.push(p.to_string());
         } else {
             return Err(rusqlite::Error::InvalidQuery);
@@ -235,6 +274,25 @@ pub fn list_sessions(
     period: Option<&str>,
     pos: Option<&str>,
 ) -> Result<Vec<WorkSession>> {
+    // NEW: support for --period all
+    if let Some("all") = period {
+        let mut sql =
+            "SELECT id, date, position, start_time, lunch_break, end_time FROM work_sessions"
+                .to_string();
+
+        let mut owned_params: Vec<String> = Vec::new();
+        let mut param_refs: Vec<&dyn ToSql> = Vec::new();
+
+        apply_position_filter(&mut sql, pos, &mut owned_params, &mut param_refs);
+
+        sql.push_str(" ORDER BY date ASC");
+
+        let mut stmt = conn.prepare_cached(&sql)?;
+        let rows = stmt.query_map(param_refs.as_slice(), row_to_worksession)?;
+        return rows.collect::<Result<Vec<_>, _>>();
+    }
+
+    // DEFAULT PATH (filtered)
     let base_query =
         "SELECT id, date, position, start_time, lunch_break, end_time FROM work_sessions";
     let (mut query, params) = build_filtered_query(base_query, period, pos)?;
@@ -364,12 +422,46 @@ pub fn list_events(conn: &Connection) -> Result<Vec<Event>> {
     rows.collect::<Result<Vec<_>, _>>()
 }
 
+/// Append a position filter to SQL query while safely managing lifetimes.
+/// Stores the uppercase copy into owned_params so references remain valid.
+fn apply_position_filter<'a>(
+    sql: &mut String,
+    pos: Option<&str>,
+    owned_params: &'a mut Vec<String>,
+    param_refs: &mut Vec<&'a dyn ToSql>,
+) {
+    if let Some(p) = pos {
+        let upper = p.to_uppercase();
+        sql.push_str(" WHERE position = ?1");
+        owned_params.push(upper);
+        param_refs.push(&owned_params[owned_params.len() - 1]);
+    }
+}
+
 /// List events filtered by optional period (YYYY or YYYY-MM) and position
 pub fn list_events_filtered(
     conn: &Connection,
     period: Option<&str>,
     pos: Option<&str>,
 ) -> Result<Vec<Event>> {
+    // NEW: support for --period all
+    if let Some("all") = period {
+        let mut sql = "SELECT id, date, time, kind, position, lunch_break, pair, source, meta, created_at FROM events"
+            .to_string();
+
+        let mut owned_params: Vec<String> = Vec::new();
+        let mut param_refs: Vec<&dyn ToSql> = Vec::new();
+
+        apply_position_filter(&mut sql, pos, &mut owned_params, &mut param_refs);
+
+        sql.push_str(" ORDER BY date ASC, time ASC");
+
+        let mut stmt = conn.prepare_cached(&sql)?;
+        let rows = stmt.query_map(param_refs.as_slice(), row_to_event)?;
+        return rows.collect::<Result<Vec<_>, _>>();
+    }
+
+    // DEFAULT PATH (filtered)
     let base_query = "SELECT id, date, time, kind, position, lunch_break, pair, source, meta, created_at FROM events";
     let (mut query, params) = build_filtered_query(base_query, period, pos)?;
 
@@ -378,6 +470,7 @@ pub fn list_events_filtered(
     let mut stmt = conn.prepare_cached(&query)?;
     let param_refs: Vec<&dyn ToSql> = params.iter().map(|s| s as &dyn ToSql).collect();
     let rows = stmt.query_map(param_refs.as_slice(), row_to_event)?;
+
     rows.collect::<Result<Vec<_>, _>>()
 }
 

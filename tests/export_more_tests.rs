@@ -1,6 +1,5 @@
 mod common;
-use assert_cmd::Command;
-use common::{init_db_with_data, setup_test_db, temp_out};
+use common::{init_db_with_data, rti, setup_test_db, temp_out};
 use predicates::str::contains;
 use std::fs;
 
@@ -11,8 +10,7 @@ fn test_export_invalid_format_fails() {
 
     let out = temp_out("export_invalid_format", "csv");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "xml", "--file", &out, "--events",
         ])
@@ -29,8 +27,7 @@ fn test_export_non_absolute_path_fails() {
     // relative path
     let out = "relative_out.csv";
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "csv", "--file", out, "--events",
         ])
@@ -49,8 +46,7 @@ fn test_export_force_overwrite() {
     // create preexisting file with known content
     fs::write(&out, "OLD_CONTENT").expect("create file");
 
-    Command::cargo_bin("rtimelogger")
-        .unwrap()
+    rti()
         .args([
             "--db", &db_path, "export", "--format", "csv", "--file", &out, "--events", "--force",
         ])
@@ -74,8 +70,7 @@ fn test_export_cancel_overwrite_keeps_file() {
     // create preexisting file with known content
     fs::write(&out, "ORIGINAL").expect("create file");
 
-    let mut cmd = Command::cargo_bin("rtimelogger").unwrap();
-    let assert = cmd
+    let assert = rti()
         .args([
             "--db", &db_path, "export", "--format", "json", "--file", &out, "--events",
         ])

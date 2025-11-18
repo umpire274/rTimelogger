@@ -1,5 +1,67 @@
 # Changelog
 
+## [0.7.0] - 2025-11-18
+
+### Added
+
+- **Extended period filtering for `list`**  
+  The `--period` option now supports advanced date formats and custom ranges:
+    - Single values:
+        - `YYYY` → full year
+        - `YYYY-MM` → full month
+        - `YYYY-MM-DD` → specific day
+    - Ranges (`start:end`) in matching formats:
+        - `YYYY:YYYY` → year range
+        - `YYYY-MM:YYYY-MM` → month range
+        - `YYYY-MM-DD:YYYY-MM-DD` → day range
+    - Example usage:
+        - `rtimelogger list --period 2025-06`
+        - `rtimelogger list --period 2025-06-01:2025-06-10`
+        - `rtimelogger list --period 2024:2025`
+
+- **New --period all (full archive mode)**
+  Added support for rtimelogger list --period all to display every stored session, with no date filtering applied. Works
+  with all sub-filters (--pos, --events, --summary, --pairs, etc.).
+
+- **New --range all for export**
+  rtimelogger export --range all now exports all available data from the database (sessions or events), matching the new
+  list behaviour.
+
+- **Default period for `list`**  
+  Running `rtimelogger list` without any period or event filters now automatically shows the **current month**,
+  improving usability for daily workflows.
+
+- **Updated `export --range` option**  
+  `--range` now supports the exact same date formats and ranges as `--period`, ensuring consistency between listing and
+  exporting data.
+
+### Changed
+
+- Improved the help messages of `--period` and `export --range` with explicit descriptions and examples.
+- Refactored and extended internal filtering logic (`build_filtered_query`) to support:
+    - year / month / day
+    - ranges (`start:end`)
+    - the new `all` keyword across both sessions and events.
+
+- Improved test execution by migrating all tests to the new, non-deprecated `cargo_bin_cmd!` macro from `assert_cmd`,
+  replacing the deprecated `Command::cargo_bin()` API.
+
+### Fixed
+
+- Improved error handling for malformed `add` command input (Issue #22).
+  When invalid input is detected (e.g., bad date format or missing positional arguments), the CLI now prints:
+    - a clear validation error
+    - a short usage guide
+    - positional argument descriptions
+    - concrete examples making the command easier to use without needing to run --help after every mistake.
+
+### Notes
+
+`v0.7.0` introduces a more powerful and unified date-range filtering system, a full-archive mode, improved help output,
+and modernized test infrastructure. All previous CLI behaviours remain fully backwards-compatible.
+
+---
+
 ## [0.6.6] - 2025-10-13
 
 ### Added

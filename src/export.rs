@@ -143,8 +143,13 @@ pub fn handle_export(cmd: &Commands, conn: &Connection) -> Result<(), Box<dyn Er
         // new check
         ensure_writable(path, *force)?;
 
+        // Interpret --range all → no date filtering
         let date_bounds: Option<(String, String)> = if let Some(r) = range.as_deref() {
-            Some(parse_range(r).map_err(|e| format!("invalid --range: {e}"))?)
+            if r.eq_ignore_ascii_case("all") {
+                None
+            } else {
+                Some(parse_range(r).map_err(|e| format!("invalid --range: {e}"))?)
+            }
         } else {
             None
         };
@@ -474,49 +479,77 @@ pub fn export_pdf<T: Serialize>(
     Ok(())
 }
 
-fn parse_range(range: &str) -> Result<(String, String), String> {
-    // YYYY
-    if range.len() == 4 && range.chars().all(|c| c.is_ascii_digit()) {
-        let y = range.to_string();
-        return Ok((format!("{y}-01-01"), format!("{y}-12-31")));
-    }
+/// Parse --range in the same format as --period:
+/// - YYYY
+/// - YYYY-MM
+/// - YYYY-MM-DD
+/// - YYYY:YYYY
+/// - YYYY-MM:YYYY-MM
+/// - YYYY-MM-DD:YYYY-MM-DD
+fn parse_range(r: &str) -> Result<(String, String), String> {
+    // Case 1: range with ":" → start:end
+    if let Some((start_raw, end_raw)) = r.split_once(':') {
+        let start = start_raw.trim();
+        let end = end_raw.trim();
 
-    // YYYY-MM
-    if range.len() == 7 && &range[4..5] == "-" {
-        let y: i32 = range[0..4].parse().map_err(|_| "invalid year")?;
-        let m: u32 = range[5..7].parse().map_err(|_| "invalid month")?;
-        let last = month_last_day(y, m).ok_or("invalid month in range")?;
-        return Ok((format!("{y}-{m:02}-01"), format!("{y}-{m:02}-{last:02}")));
-    }
+        if start.len() != end.len() {
+            return Err("start and end must have same format".into());
+        }
 
-    // YYYY-MM-{dd..dd}
-    if range.len() >= 15
-        && &range[4..5] == "-"
-        && range.contains("..")
-        && range.contains('{')
-        && range.ends_with('}')
-    {
-        let y: i32 = range[0..4].parse().map_err(|_| "invalid year")?;
-        let m: u32 = range[5..7].parse().map_err(|_| "invalid month")?;
-        let inside = &range[8..]; // expected "{dd..dd}"
-        if !(inside.starts_with('{') && inside.ends_with('}')) {
-            return Err("invalid day range brace".into());
-        }
-        let inner = &inside[1..inside.len() - 1]; // "dd..dd"
-        let parts: Vec<&str> = inner.split("..").collect();
-        if parts.len() != 2 {
-            return Err("invalid day range syntax".into());
-        }
-        let d1: u32 = parts[0].parse().map_err(|_| "invalid start day")?;
-        let d2: u32 = parts[1].parse().map_err(|_| "invalid end day")?;
-        let last = month_last_day(y, m).ok_or("invalid month in range")?;
-        if d1 == 0 || d2 == 0 || d1 > d2 || d2 > last {
-            return Err("day range out of bounds".into());
-        }
-        return Ok((format!("{y}-{m:02}-{d1:02}"), format!("{y}-{m:02}-{d2:02}")));
-    }
+        match start.len() {
+            // YYYY:YYYY
+            4 => {
+                let ys: i32 = start.parse().map_err(|_| "invalid start year")?;
+                let ye: i32 = end.parse().map_err(|_| "invalid end year")?;
+                Ok((format!("{ys}-01-01"), format!("{ye}-12-31")))
+            }
+            // YYYY-MM:YYYY-MM
+            7 => {
+                let ys: i32 = start[0..4].parse().map_err(|_| "invalid start year")?;
+                let ms: u32 = start[5..7].parse().map_err(|_| "invalid start month")?;
+                let ye: i32 = end[0..4].parse().map_err(|_| "invalid end year")?;
+                let me: u32 = end[5..7].parse().map_err(|_| "invalid end month")?;
 
-    Err("unsupported --range format (use YYYY, YYYY-MM, or YYYY-MM-{dd..dd})".into())
+                let last = month_last_day(ye, me).ok_or("invalid end month")?;
+
+                Ok((
+                    format!("{ys}-{ms:02}-01"),
+                    format!("{ye}-{me:02}-{last:02}"),
+                ))
+            }
+            // YYYY-MM-DD:YYYY-MM-DD
+            10 => {
+                NaiveDate::parse_from_str(start, "%Y-%m-%d").map_err(|_| "invalid start date")?;
+                NaiveDate::parse_from_str(end, "%Y-%m-%d").map_err(|_| "invalid end date")?;
+
+                Ok((start.to_string(), end.to_string()))
+            }
+            _ => Err("unsupported range format".into()),
+        }
+    }
+    // Case 2: single formats (exactly like `--period`)
+    else {
+        match r.len() {
+            // YYYY
+            4 => {
+                let y: i32 = r.parse().map_err(|_| "invalid year")?;
+                Ok((format!("{y}-01-01"), format!("{y}-12-31")))
+            }
+            // YYYY-MM
+            7 => {
+                let y: i32 = r[0..4].parse().map_err(|_| "invalid year")?;
+                let m: u32 = r[5..7].parse().map_err(|_| "invalid month")?;
+                let last = month_last_day(y, m).ok_or("invalid month")?;
+                Ok((format!("{y}-{m:02}-01"), format!("{y}-{m:02}-{last:02}")))
+            }
+            // YYYY-MM-DD
+            10 => {
+                NaiveDate::parse_from_str(r, "%Y-%m-%d").map_err(|_| "invalid date")?;
+                Ok((r.to_string(), r.to_string()))
+            }
+            _ => Err("unsupported --range format".into()),
+        }
+    }
 }
 
 fn month_last_day(y: i32, m: u32) -> Option<u32> {

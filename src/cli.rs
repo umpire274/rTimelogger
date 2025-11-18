@@ -100,7 +100,33 @@ pub enum Commands {
     },
     /// List sessions
     List {
-        #[arg(long, short)]
+        /// Filter by period.
+        ///
+        /// Supported formats:
+        /// - YYYY                  → entire year (e.g. "2025")
+        /// - YYYY-MM              → entire month (e.g. "2025-06")
+        /// - YYYY-MM-DD           → specific day (e.g. "2025-06-18")
+        ///
+        /// Ranges (start:end) in the same format:
+        /// - YYYY:YYYY            → year range           (e.g. "2024:2025")
+        /// - YYYY-MM:YYYY-MM      → month range          (e.g. "2025-06:2025-08")
+        /// - YYYY-MM-DD:YYYY-MM-DD→ day range           (e.g. "2025-06-01:2025-06-10")
+        ///
+        /// Special value:
+        /// - all                   → show the entire archive (bypass date filtering)
+        ///
+        /// Examples:
+        ///   rtimelogger list --period 2025-06
+        ///   rtimelogger list --period 2025-06-01:2025-06-10
+        ///   rtimelogger list --period 2024:2025
+        ///   rtimelogger list --period all
+        ///
+        /// If omitted, the default is *current month* unless --now or --events is used.
+        #[arg(
+            long,
+            short,
+            help = "Filter by year/month/day or a custom range (YYYY, YYYY-MM, YYYY-MM-DD, or ranges)"
+        )]
         period: Option<String>,
 
         /// Filter by position (O=Office, R=Remote, H=Holiday)
@@ -158,8 +184,33 @@ pub enum Commands {
         #[arg(long, value_name = "FILE")]
         file: String,
 
-        /// Date range for export (e.g., "2025-01" for January 2025, "2025-01:2025-03" for Jan-Mar 2025)
-        #[arg(long, value_name = "RANGE")]
+        /// Date range to export.
+        ///
+        /// Supported formats:
+        /// - YYYY                  → entire year (e.g. "2025")
+        /// - YYYY-MM              → entire month (e.g. "2025-06")
+        /// - YYYY-MM-DD           → specific day  (e.g. "2025-06-18")
+        ///
+        /// Ranges (start:end) in the same format:
+        /// - YYYY:YYYY            → year range           (e.g. "2024:2025")
+        /// - YYYY-MM:YYYY-MM      → month range          (e.g. "2025-06:2025-08")
+        /// - YYYY-MM-DD:YYYY-MM-DD→ day range           (e.g. "2025-06-01:2025-06-30")
+        ///
+        /// Special value:
+        /// - all                   → show the entire archive (bypass date filtering)
+        ///
+        /// Examples:
+        ///   rtimelogger export --sessions --range 2025-06
+        ///   rtimelogger export --sessions --range 2025-06-01:2025-06-10
+        ///   rtimelogger export --events   --range 2024:2025
+        ///   rtimelogger export --sessions --range all
+        ///
+        /// If omitted, all records in the database are exported.
+        #[arg(
+            long,
+            value_name = "RANGE",
+            help = "Filter export by year/month/day or a custom range"
+        )]
         range: Option<String>,
 
         /// Export EVENTS (from `events` table)
