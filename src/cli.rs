@@ -134,7 +134,7 @@ pub enum Commands {
         pos: Option<String>,
 
         /// Show only today's record (if present)
-        #[arg(long = "now", help = "Show only today's record")]
+        #[arg(long = "today", help = "Show only today's record")]
         now: bool,
 
         /// When used with --now, show the detailed events (in/out) for today instead of aggregated work_sessions

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.5] - 2025-xx-xx
+
+### Changed
+
+- Renamed the `--now` flag of the `list` command to `--today` for improved clarity and consistency.
+
+---
+
 ## [0.7.1] - 2025-11-18
 
 ### Added
