@@ -14,22 +14,11 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-### ✨ New in v0.7.1
+### ✨ New in v0.7.5
 
-**📦 Official Debian package support**
+### Changed
 
-rFortune now ships with an official `.deb` **package** for Debian/Ubuntu-based Linux distributions.
-The `.deb` is automatically built, signed, and included in every GitHub Release.
-
-- Fully integrated into the CI workflow
-- Includes GPG signature and SHA256 checksum
-- Enables easy installation via `dpkg -i`
-
-**⚙️ Improved Release Artifacts**
-
-- Unified handling of Linux, macOS, and Windows builds
-- Improved consistency for SHA256 checksums and signature generation
-- Better Linux distribution support (Debian/Ubuntu + generic tarball)
+- Replaced the `--now` flag of the `list` command with the clearer and more user-friendly `--today`.
 
 ---
 
@@ -189,6 +178,8 @@ rtimelogger add 2025-09-14 --pos H
 
 ```bash
 rtimelogger list                   # shows *current month* by default
+rtimelogger list --today              # shows only today
+rtimelogger list --today --details    # shows today with event details
 rtimelogger list --period 2025     # year
 rtimelogger list --period 2025-09  # month
 rtimelogger list --period 2025-09-15  # specific day

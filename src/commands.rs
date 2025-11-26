@@ -13,6 +13,22 @@ use std::path::Path;
 use std::process::Command;
 use std::{fs, io};
 
+fn print_help_add_command() {
+    eprintln!("Usage:");
+    eprintln!("  rtimelogger add <DATE> [<POS>] [<START>] [<LUNCH>] [<END>]\n");
+    eprintln!("Positional arguments:");
+    eprintln!("  DATE        Work date in format YYYY-MM-DD");
+    eprintln!("  POS         O=Office, R=Remote, H=Holiday, C=On-Site Client");
+    eprintln!("  START       Start time in HH:MM");
+    eprintln!("  LUNCH       Lunch break minutes (0–90)");
+    eprintln!("  END         End time in HH:MM\n");
+
+    eprintln!("Examples:");
+    eprintln!("  rtimelogger add 2025-10-11 O 08:55 30 17:10");
+    eprintln!("  rtimelogger add 2025-10-11 --pos O --in 08:55 --lunch 30 --out 17:10");
+    eprintln!("  rtimelogger add 2025-10-11 --edit --pair 1 --in 09:00\n");
+}
+
 pub fn handle_config(cmd: &Commands) -> rusqlite::Result<()> {
     if let Commands::Config {
         print_config,
@@ -257,20 +273,7 @@ pub fn handle_add(cmd: &Commands, conn: &mut Connection, config: &Config) -> rus
         if chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() {
             eprintln!("❌ Invalid date format: {} (expected YYYY-MM-DD)\n", date);
 
-            // Mini-help automatico
-            eprintln!("Usage:");
-            eprintln!("  rtimelogger add <DATE> [<POS>] [<START>] [<LUNCH>] [<END>]\n");
-            eprintln!("Positional arguments:");
-            eprintln!("  DATE        Work date in format YYYY-MM-DD");
-            eprintln!("  POS         O=Office, R=Remote, H=Holiday, C=On-Site Client");
-            eprintln!("  START       Start time in HH:MM");
-            eprintln!("  LUNCH       Lunch break minutes (0–90)");
-            eprintln!("  END         End time in HH:MM\n");
-
-            eprintln!("Examples:");
-            eprintln!("  rtimelogger add 2025-10-11 O 08:55 30 17:10");
-            eprintln!("  rtimelogger add 2025-10-11 --pos O --in 08:55 --lunch 30 --out 17:10");
-            eprintln!("  rtimelogger add 2025-10-11 --edit --pair 1 --in 09:00\n");
+            print_help_add_command();
 
             return Ok(());
         }
@@ -323,12 +326,14 @@ pub fn handle_add(cmd: &Commands, conn: &mut Connection, config: &Config) -> rus
                 && NaiveTime::parse_from_str(s, "%H:%M").is_err()
             {
                 eprintln!("\u{274c} Invalid start time: {}", s);
+                print_help_add_command();
                 return Ok(());
             }
             if let Some(e_t) = end.as_ref()
                 && NaiveTime::parse_from_str(e_t, "%H:%M").is_err()
             {
                 eprintln!("\u{274c} Invalid end time: {}", e_t);
+                print_help_add_command();
                 return Ok(());
             }
             if let (Some(s), Some(e_t)) = (start.as_ref(), end.as_ref())
@@ -383,6 +388,7 @@ pub fn handle_add(cmd: &Commands, conn: &mut Connection, config: &Config) -> rus
                 if p_norm != "O" && p_norm != "R" && p_norm != "H" && p_norm != "C" && p_norm != "M"
                 {
                     eprintln!("\u{274c} Invalid position: {}", p_norm);
+                    print_help_add_command();
                     return Ok(());
                 }
                 if let Some(ie) = in_event.as_ref() {
@@ -431,6 +437,7 @@ pub fn handle_add(cmd: &Commands, conn: &mut Connection, config: &Config) -> rus
             if let Some(lv) = lunch {
                 if !(0..=90).contains(&lv) {
                     eprintln!("\u{274c} Invalid lunch break: {}", lv);
+                    print_help_add_command();
                     return Ok(());
                 }
                 if let Some(oe) = out_event.as_ref() {
@@ -445,6 +452,7 @@ pub fn handle_add(cmd: &Commands, conn: &mut Connection, config: &Config) -> rus
                 eprintln!(
                     "\u{26a0}\u{FE0F} No fields provided to edit (use --pos/--in/--out/--lunch)"
                 );
+                print_help_add_command();
             } else if let Err(e) = db::ttlog(
                 conn,
                 "edit",
