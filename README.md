@@ -14,11 +14,61 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-### ✨ New in v0.7.5
+## 🚀 What's New in **v0.8.0-alpha1**
 
-### Changed
+This is the largest rewrite of **rtimelogger** to date.  
+The internal event model, database logic, and CLI behavior have all been redesigned for correctness, consistency, and
+long-term maintainability.
 
-- Replaced the `--now` flag of the `list` command with the clearer and more user-friendly `--today`.
+### ✅ Major Changes
+
+- **New event model**
+    - `timestamp` removed → now separated into `date` + `time`.
+    - New fields: `pair`, `location`, `lunch_break`, `meta`, `source`, `created_at`.
+    - All parsing/formatting logic updated across the CLI.
+
+- **Database redesign**
+    - Fully rewritten queries using the new schema.
+    - Automatic **pair recalculation** after each insert/edit/delete.
+    - Guaranteed chronological ordering and consistent pairing logic.
+
+- **Improved `add` command**
+    - All parameters are now **fully optional** except the date.
+    - Smart defaults:
+        - Position defaults to previous event’s position.
+        - Lunch and end time can be added independently.
+    - Full **edit mode** with `--edit --pair N`.
+
+- **Improved `del` command**
+    - Safe deletion with interactive **confirmation prompts**.
+    - Can remove either a full day or a specific pair.
+    - Automatic pair number recalculation after deletion.
+
+### 📄 New & Improved Commands
+
+- **`log`**
+    - ANSI-colored output.
+    - Dynamic column width.
+    - Automatic timestamp normalization (`%FT%T`).
+    - Combined `operation + target` column with intelligent alignment.
+
+- **`backup`**
+    - Full rewrite.
+    - Supports ZIP compression.
+    - Logs backup operations internally.
+
+- **`export`**
+    - Complete refactor: CSV, JSON, XLSX, PDF.
+    - XLSX export rewritten with styling, date/time detection, column autosizing.
+    - PDF export stabilized.
+
+### 🛠 Internal Improvements
+
+- New helpers for date/time parsing and validation.
+- Consistent error model across modules.
+- Better `DbPool` usage and cleanup.
+- Large reduction in duplicated logic.
+- Much cleaner separation between CLI layer, core logic, and DB layer.
 
 ---
 

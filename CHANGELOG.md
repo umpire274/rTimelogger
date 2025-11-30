@@ -1,6 +1,159 @@
 # Changelog
 
-## [0.7.5] - 2025-xx-xx
+## [0.8.0-alpha1] - 2025-11-30
+
+### 🚀 Major Refactor & Architecture Overhaul
+
+* Fully reworked internal architecture of **event handling**, **pairing**, **timeline construction**, **work sessions**,
+  **logging**, and **exporting**.
+* Unifying logic across `add`, `del`, `edit`, `backup`, `log`, and `export` commands.
+* Significantly improved code organization and separation of concerns across modules:
+
+    * `core/add.rs`, `core/del.rs`, `core/backup.rs`, `core/export.rs`
+    * `db/queries.rs` rewritten and consolidated
+    * `models` updated for correctness and consistency
+    * `utils` updated for date/time parsing and improved formatting
+
+---
+
+### ➕ Add Command Improvements
+
+* Complete rewrite of **AddLogic** with cleaner separation between parsing, validation, and DB operations.
+* All parameters (except date) are now **optional**, with automatic inference based on context.
+* Improved handling of positional arguments and flags.
+* Correct handling of editing existing pairs using `--edit` and `--pair`.
+* Position (location) inference rules rewritten:
+
+    * If no position is provided, fallback to last event of the day.
+    * Default position remains `O` (Office).
+* Fix for lunch-only updates without requiring an OUT event.
+
+---
+
+### 🗑️ Del Command Improvements
+
+* Introduced **interactive confirmation prompts** for destructive operations:
+
+    * Deleting a single pair now asks for confirmation.
+    * Deleting an entire date also asks for confirmation.
+* Logic moved fully into `core/del.rs`.
+* Proper timeline recalculation after deletions.
+
+---
+
+### 📝 Full Logging Redesign
+
+* Internal log now uses a clean and structured format.
+* Timestamp standardized to `%FT%T%:z`.
+* Added ANSI color output:
+
+    * `init` → orange
+    * `add` → green
+    * `del` → red
+    * `edit` → yellow
+    * `migration_applied` → purple
+    * `migrate_to_*` → purple
+    * `backup` → blue
+    * fallback → white
+* Unified **operation + target** into one column with truncation to 60 chars.
+* Smart alignment of columns for a consistent table-like layout.
+
+---
+
+### 🗂️ Export System Rewrite
+
+* Entire export subsystem refactored into `core/export.rs`.
+* Added support for formats:
+
+    * **CSV**
+    * **JSON**
+    * **XLSX** (with professional Excel styling: freeze panes, custom formats, banded rows)
+    * **PDF** (via `PdfManager`)
+* Added `--range` support matching `--period` syntax:
+
+    * `YYYY`, `YYYY-MM`, `YYYY-MM-DD`
+    * `YYYY:YYYY`, `YYYY-MM:YYYY-MM`, `YYYY-MM-DD:YYYY-MM-DD`
+* Smart parsing of Excel date/time formats.
+* Added `--force` to bypass overwrite confirmation.
+* Enforced requirement for absolute file paths.
+
+---
+
+### 💾 Backup System Improvements
+
+* Backup logic rewritten into `core/backup.rs`.
+* Added ZIP compression using the `zip` crate.
+* Backup now logs its operation into the internal log.
+* Automatic cleanup of uncompressed files after successful compression.
+* Added error feedback for invalid paths and missing database file.
+
+---
+
+### 🧮 Pair Recalculation & Session Consistency
+
+* Pair recalculation fully rewritten.
+* Automatically updates `pair` values after:
+
+    * additions
+    * edits
+    * deletions
+* Fix for events being stored with incorrect pair values.
+* Timeline logic improved for IN/OUT matching.
+
+---
+
+### 🗃️ Database Query Layer
+
+* Consolidated all DB read/write functions in `db/queries.rs`.
+* `load_events_by_date` now works with `NaiveDate` instead of string.
+* `map_row` improved with safe parsing and better error reporting.
+* Removed deprecated `timestamp` field usage.
+
+---
+
+### 🧱 Models & Utilities
+
+* Updated `Event`, `EventType`, and `Location` to reflect the new structure.
+* `Location` now has cleaner conversions: `code`, `to_db_str`, `from_db_str`, `from_code`.
+* Added time parsing helpers in `utils/time.rs`.
+* Improved date parsing with better validation.
+
+---
+
+### 🧹 Cleanup and Misc Improvements
+
+* Removed all deprecated functions and unused fields.
+* Ensured consistent error handling using `AppError` and `AppResult`.
+* Removed redundant arguments from handlers.
+* Fixed warnings across multiple modules.
+* Ensured database path resolution flows through config consistently.
+
+---
+
+### ⚙️ Migration Compatibility
+
+* Added detection and logging for migrations (e.g., `migrate_to_*`).
+* ANSI color mapping extended for migration operations.
+
+---
+
+### ✔️ Final Notes
+
+This release marks a **major architectural milestone**, with more than 80% of the application redesigned for
+maintainability, correctness, and future expansion.
+
+The next phase will introduce:
+
+* unit tests
+* integration tests
+* timeline/export validation tests
+
+rTimeLogger's internal engine is now finally stable and extensible.
+
+
+---
+
+## [0.7.5] - 2025-11-21
 
 ### Changed
 

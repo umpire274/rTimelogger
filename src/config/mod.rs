@@ -71,6 +71,7 @@ impl Config {
     pub fn load() -> Self {
         let path = Self::config_file();
 
+        // ADD QUI — debug print temporaneo
         if path.exists() {
             let content = fs::read_to_string(&path).expect("❌ Failed to read configuration file");
             serde_yaml::from_str(&content).expect("❌ Failed to parse configuration file")
