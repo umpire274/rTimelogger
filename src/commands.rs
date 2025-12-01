@@ -931,15 +931,6 @@ pub fn handle_list_with_highlight(
         db::list_sessions(conn, period.as_deref(), pos_upper.as_deref())?
     };
 
-    if sessions.is_empty() {
-        if highlight_id.is_some() {
-            println!("⚠️  No recorded session found with the requested id");
-        } else {
-            println!("⚠️  No recorded sessions found");
-        }
-        return Ok(());
-    }
-
     if highlight_id.is_none() {
         if let Some(p) = period {
             if p.len() == 4 {
@@ -962,6 +953,17 @@ pub fn handle_list_with_highlight(
     } else {
         // When highlighting a single record (called from handle_add), avoid printing any header
         // to output exclusively the single record.
+    }
+
+    println!();
+
+    if sessions.is_empty() {
+        if highlight_id.is_some() {
+            println!("⚠️  No recorded session found with the requested id");
+        } else {
+            println!("⚠️  No recorded sessions found");
+        }
+        return Ok(());
     }
 
     let mut total_surplus = 0;
