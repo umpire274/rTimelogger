@@ -14,11 +14,53 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-### ✨ New in v0.7.5
+### ✨ News in v0.7.6
 
-### Changed
+This maintenance release introduces an important recovery feature for the
+legacy 0.7.x architecture, ensuring full database consistency even when the
+`work_sessions` table becomes empty or desynchronized.
 
-- Replaced the `--now` flag of the `list` command with the clearer and more user-friendly `--today`.
+#### 🔄 New: `db --rebuild` Command
+
+A new maintenance command has been added:
+
+```bash
+rtimelogger db --rebuild
+```
+
+This command allows you to fully regenerate the work_sessions table from
+the raw events' data.
+
+Key features:
+
+- Rebuilds all work sessions by grouping events by day and pair
+- Supports days containing only an IN event (incomplete days are no longer skipped)
+- Computes:
+    - earliest IN as the daily start_time
+    - latest OUT as the daily end_time
+    - total work duration (sum of all IN/OUT pairs minus lunch breaks)
+    - total daily lunch break
+
+- Determines the daily position:
+    - If all events share the same position → that position is used
+    - If mixed positions are present → M (‘Mixed’) is applied
+
+- Automatically creates a backup of the previous work_sessions table
+- The rebuild function now returns the number of reconstructed rows
+- Provides clear CLI output and audit logging
+
+#### 🛠 Why this matters
+
+In some scenarios (e.g., database corruption, manual edits, legacy migration issues), the work_sessions table may become
+empty while the events table remains intact.
+This feature allows full recovery of the day-by-day session history without data loss.
+
+#### Example output:
+
+```bash
+$ rtimelogger db --rebuild
+✅ Rebuilt work_sessions from events (184 rows affected)
+```
 
 ---
 
@@ -251,6 +293,13 @@ Are you sure to delete the pair 1 of the date 2025-10-02 (N/y) ? y
 🗑️  Deleted 1 event(s) for pair 1 on 2025-10-02
 ```
 
+### Rebuild work_sessions table from events
+
+```bash
+$ rtimelogger db --rebuild
+✅ Rebuilt work_sessions from events (184 rows affected)
+```
+
 ### Internal log
 
 ```bash
@@ -397,6 +446,55 @@ Notes:
 ## 🗄️ Database migrations
 
 *(unchanged – see CHANGELOG for past versions)*
+
+---
+
+## 🔧 Database Maintenance Tools
+
+Starting from **rTimelogger 0.7.6**, the application includes a new
+maintenance command that allows you to rebuild the `work_sessions` table
+directly from the raw `events` data.
+
+### 🔄 Rebuild the `work_sessions` Table
+
+If the `work_sessions` table becomes empty or inconsistent (for example,
+after import issues or database corruption), you can regenerate it using:
+
+```bash
+rtimelogger db --rebuild
+```
+
+This command will:
+
+- Backup the current work_sessions table into work_sessions_backup
+- Scan all records in the events table (legacy architecture)
+- Recompute:
+    - Daily start/end times
+    - Session durations
+    - Lunch breaks
+    - Daily positions (or fallback to M if mixed)
+- Create a single consolidated record per day
+- Insert the reconstructed rows into work_sessions
+- Print the number of reconstructed sessions
+
+### 📌 Handling Incomplete Days
+
+Days that contain only an IN event (no corresponding OUT) will still
+generate a valid session:
+
+- start_time = time of the first IN event
+- end_time = empty string
+- work_duration = 0
+- position determined from the day's events
+
+This ensures that no working day is ever lost, even when events are incomplete.
+
+### Example output
+
+```bash
+$ rtimelogger db --rebuild
+✅ Rebuilt work_sessions from events (184 rows affected)
+```
 
 ---
 

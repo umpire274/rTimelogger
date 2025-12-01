@@ -142,6 +142,29 @@ pub fn handle_init(cli: &Cli, db_path: &str) -> rusqlite::Result<()> {
     Ok(())
 }
 
+pub fn handle_db(cmd: &Commands, conn: &Connection) -> rusqlite::Result<()> {
+    if let Commands::Db { rebuild } = cmd
+        && *rebuild
+    {
+        match db::rebuild_work_sessions(conn) {
+            Ok(rows) => {
+                println!(
+                    "✅ Rebuilt work_sessions from events ({:?} rows affected)",
+                    rows
+                );
+                let _ = db::ttlog(
+                    conn,
+                    "db",
+                    "Rebuild work_sessions from events",
+                    &format!("Rebuilt work_sessions from events ({:?} rows)", rows),
+                );
+            }
+            Err(e) => eprintln!("❌ Error rebuilding work_sessions: {}", e),
+        }
+    }
+    Ok(())
+}
+
 pub fn handle_del(cmd: &Commands, conn: &mut Connection) -> rusqlite::Result<()> {
     if let Commands::Del { pair, date } = cmd {
         let date = date.trim();
@@ -908,15 +931,6 @@ pub fn handle_list_with_highlight(
         db::list_sessions(conn, period.as_deref(), pos_upper.as_deref())?
     };
 
-    if sessions.is_empty() {
-        if highlight_id.is_some() {
-            println!("⚠️  No recorded session found with the requested id");
-        } else {
-            println!("⚠️  No recorded sessions found");
-        }
-        return Ok(());
-    }
-
     if highlight_id.is_none() {
         if let Some(p) = period {
             if p.len() == 4 {
@@ -939,6 +953,17 @@ pub fn handle_list_with_highlight(
     } else {
         // When highlighting a single record (called from handle_add), avoid printing any header
         // to output exclusively the single record.
+    }
+
+    println!();
+
+    if sessions.is_empty() {
+        if highlight_id.is_some() {
+            println!("⚠️  No recorded session found with the requested id");
+        } else {
+            println!("⚠️  No recorded sessions found");
+        }
+        return Ok(());
     }
 
     let mut total_surplus = 0;
@@ -1492,6 +1517,8 @@ fn print_events_table_with_pairs(
     if events.is_empty() {
         return;
     }
+    println!();
+
     // Build lookup id -> (pair, unmatched)
     use std::collections::HashMap;
     let mut meta: HashMap<i32, (usize, bool)> = HashMap::with_capacity(pair_map.len());

@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.7.6] - 2025-01-XX
+
+### Added
+
+- Introduced the new `db --rebuild` command to fully regenerate the `work_sessions` table from the raw `events` table.
+- Added automatic backup of the existing `work_sessions` table before rebuilding.
+- Added support for incomplete days (days containing only `IN` events), which now generate a valid `work_sessions` entry
+  with an empty `end_time` and zero duration.
+- The rebuild function now returns the number of rows inserted, allowing for detailed logging and user feedback.
+
+### Improved
+
+- Daily position is now correctly computed based on all events of the day:
+    - If all events share the same position → that position is used.
+    - If mixed positions are present → the position is set to `M`.
+- Daily work duration is computed by summing the durations of all IN/OUT pairs and subtracting the total lunch break.
+- Improved safety of time parsing and error handling during event processing.
+
+### Fixed
+
+- Addressed an issue where missing or inconsistent data in `work_sessions` could cause the `list` command to falsely
+  report “No recorded sessions found”.
+- Ensures full database integrity for legacy 0.7.x installations.
+
+### Notes
+
+This fix is essential for restoring consistency in production databases.
+The feature will be ported to the `0.8.0-alpha2` architecture.
+
+---
+
 ## [0.7.5] - 2025-xx-xx
 
 ### Changed
