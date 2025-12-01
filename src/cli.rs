@@ -61,6 +61,14 @@ pub enum Commands {
         /// Rebuild the work_sessions table from events
         #[arg(long = "rebuild", help = "Rebuild the table work_sessions from events")]
         rebuild: bool,
+
+        #[arg(
+            long = "period",
+            short = 'p',
+            requires = "rebuild",
+            help = "Filter by year/month/day or a custom range (YYYY, YYYY-MM, YYYY-MM-DD, or ranges like YYYY-MM:YYYY-MM)"
+        )]
+        period: Option<String>,
     },
 
     /// Add or update a work session

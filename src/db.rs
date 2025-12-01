@@ -891,39 +891,116 @@ pub fn delete_events_by_ids_and_recompute_sessions(
 #[derive(Debug)]
 struct EventRow {
     time: String,
-    kind: String,     // "in" | "out"
-    position: String, // "O", "R", "H", "C", "M"
-    lunch_break: i64, // minuti
+    kind: String,
+    position: String,
+    lunch_break: i64,
     pair: i64,
 }
 
-/// Ricostruisce completamente la tabella `work_sessions` a partire da `events`.
-/// Pensata per la versione 0.7.x (vecchia architettura).
-pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
-    // BEGIN
+// -------------------------------------------------------------
+// parse_period() → returns (SQL_query, parameter_list)
+// -------------------------------------------------------------
+fn parse_period(period: &str) -> (String, Vec<String>) {
+    // ALL
+    if period == "all" {
+        return (
+            "SELECT DISTINCT date FROM events ORDER BY date".to_string(),
+            vec![],
+        );
+    }
+
+    // RANGE YYYY-MM-DD:YYYY-MM-DD
+    if let Some((start, end)) = period.split_once(':') {
+        return (
+            "SELECT DISTINCT date FROM events WHERE date BETWEEN ?1 AND ?2 ORDER BY date"
+                .to_string(),
+            vec![start.to_string(), end.to_string()],
+        );
+    }
+
+    // YEAR YYYY
+    if period.len() == 4 {
+        return (
+            "SELECT DISTINCT date FROM events WHERE date LIKE ?1 ORDER BY date".to_string(),
+            vec![format!("{}-%", period)],
+        );
+    }
+
+    // MONTH YYYY-MM
+    if period.len() == 7 {
+        return (
+            "SELECT DISTINCT date FROM events WHERE date LIKE ?1 ORDER BY date".to_string(),
+            vec![format!("{}-%", period)],
+        );
+    }
+
+    // DAY YYYY-MM-DD
+    if period.len() == 10 {
+        return (
+            "SELECT DISTINCT date FROM events WHERE date = ?1 ORDER BY date".to_string(),
+            vec![period.to_string()],
+        );
+    }
+
+    // fallback
+    (
+        "SELECT DISTINCT date FROM events ORDER BY date".to_string(),
+        vec![],
+    )
+}
+
+// -------------------------------------------------------------
+// parse_time() "HH:MM" / "HH:MM:SS"
+// -------------------------------------------------------------
+fn parse_time(s: &str) -> Option<NaiveTime> {
+    if let Ok(t) = NaiveTime::parse_from_str(s, "%H:%M:%S") {
+        return Some(t);
+    }
+    if let Ok(t) = NaiveTime::parse_from_str(s, "%H:%M") {
+        return Some(t);
+    }
+    None
+}
+
+// -------------------------------------------------------------
+// rebuild_work_sessions() — FINAL VERSION
+// -------------------------------------------------------------
+pub fn rebuild_work_sessions(conn: &Connection, period: &str) -> Result<u32> {
+    let (query, params_vec) = parse_period(period);
+
+    // Start transaction
     conn.execute("BEGIN IMMEDIATE TRANSACTION", [])?;
 
-    // Backup semplice
+    // Create backup
     conn.execute("DROP TABLE IF EXISTS work_sessions_backup", [])?;
     conn.execute(
         "CREATE TABLE work_sessions_backup AS SELECT * FROM work_sessions",
         [],
     )?;
 
-    // Svuota la tabella
+    // Clear main table
     conn.execute("DELETE FROM work_sessions", [])?;
 
-    // Per contare quante righe inseriamo
+    // Prepare SELECT dates statement
+    let mut dates_stmt = conn.prepare(&query)?;
+
+    // ---- SINGLE closure to fix type mismatch ----
+    let row_mapper = |row: &rusqlite::Row| row.get::<_, String>(0);
+
+    let dates_iter = match params_vec.len() {
+        0 => dates_stmt.query_map([], row_mapper)?,
+        1 => dates_stmt.query_map([params_vec[0].as_str()], row_mapper)?,
+        2 => dates_stmt.query_map([params_vec[0].as_str(), params_vec[1].as_str()], row_mapper)?,
+        _ => unreachable!(),
+    };
+
     let mut inserted_rows: u32 = 0;
 
-    // Prendi tutte le date
-    let mut dates_stmt = conn.prepare("SELECT DISTINCT date FROM events ORDER BY date")?;
-    let dates_iter = dates_stmt.query_map([], |row| row.get::<_, String>(0))?;
-
+    // PROCESS EACH DATE
     for date_res in dates_iter {
         let date: String = date_res?;
 
-        // Prendi gli eventi del giorno
+        // Load events of the day
         let mut ev_stmt = conn.prepare(
             r#"
             SELECT time, kind, position, lunch_break, pair
@@ -952,7 +1029,7 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
             continue;
         }
 
-        // ---- calcolo position ----
+        // --- determine position + total lunch break ---
         let mut positions: HashSet<String> = HashSet::new();
         let mut total_lunch_break: i64 = 0;
 
@@ -967,7 +1044,7 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
             "M".to_string()
         };
 
-        // ---- raggruppo per pair ----
+        // --- group by pair ---
         #[derive(Default)]
         struct PairTimes {
             in_time: Option<NaiveTime>,
@@ -980,10 +1057,7 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
             let t = match parse_time(&ev.time) {
                 Some(t) => t,
                 None => {
-                    eprintln!(
-                        "Invalid time '{}' on date {}, skipping event",
-                        ev.time, date
-                    );
+                    eprintln!("Invalid time '{}' on {}, skipping", ev.time, date);
                     continue;
                 }
             };
@@ -992,24 +1066,16 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
 
             match ev.kind.as_str() {
                 "in" => {
-                    entry.in_time = match entry.in_time {
-                        Some(existing) => Some(existing.min(t)),
-                        None => Some(t),
-                    };
+                    entry.in_time = Some(entry.in_time.map_or(t, |e| e.min(t)));
                 }
                 "out" => {
-                    entry.out_time = match entry.out_time {
-                        Some(existing) => Some(existing.max(t)),
-                        None => Some(t),
-                    };
+                    entry.out_time = Some(entry.out_time.map_or(t, |e| e.max(t)));
                 }
-                _ => {
-                    eprintln!("Unknown event kind '{}'", ev.kind);
-                }
+                _ => {}
             }
         }
 
-        // ---- calcolo della giornata ----
+        // --- compute earliest IN, latest OUT ---
         let mut earliest_in: Option<NaiveTime> = None;
         let mut latest_out: Option<NaiveTime> = None;
         let mut total_work_minutes: i64 = 0;
@@ -1017,27 +1083,16 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
         for pt in pairs.values() {
             match (pt.in_time, pt.out_time) {
                 (Some(t_in), Some(t_out)) => {
-                    earliest_in = Some(match earliest_in {
-                        Some(existing) => existing.min(t_in),
-                        None => t_in,
-                    });
-
-                    latest_out = Some(match latest_out {
-                        Some(existing) => existing.max(t_out),
-                        None => t_out,
-                    });
-
+                    earliest_in = Some(earliest_in.map_or(t_in, |e| e.min(t_in)));
+                    latest_out = Some(latest_out.map_or(t_out, |e| e.max(t_out)));
                     let diff = t_out - t_in;
-                    let minutes = diff.num_minutes();
-                    if minutes > 0 {
-                        total_work_minutes += minutes;
+                    let mins = diff.num_minutes();
+                    if mins > 0 {
+                        total_work_minutes += mins;
                     }
                 }
                 (Some(t_in), None) => {
-                    earliest_in = Some(match earliest_in {
-                        Some(existing) => existing.min(t_in),
-                        None => t_in,
-                    });
+                    earliest_in = Some(earliest_in.map_or(t_in, |e| e.min(t_in)));
                 }
                 _ => {}
             }
@@ -1046,29 +1101,25 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
         let earliest_in = match earliest_in {
             Some(t) => t,
             None => {
-                eprintln!("No IN event found for {}, skipping day", date);
+                eprintln!("No IN event found for {}", date);
                 continue;
             }
         };
 
-        // Se manca OUT → comunque creare il record
         let (end_time_str, effective_work_minutes) = match latest_out {
-            Some(out_t) => {
-                let diff_minutes = total_work_minutes;
-                (out_t.format("%H:%M").to_string(), diff_minutes)
-            }
+            Some(t) => (t.format("%H:%M").to_string(), total_work_minutes),
             None => ("".to_string(), 0),
         };
 
         let start_time_str = earliest_in.format("%H:%M").to_string();
 
-        // Applico il lunch break
+        // apply lunch break
         let mut work_duration = effective_work_minutes - total_lunch_break;
         if work_duration < 0 {
             work_duration = 0;
         }
 
-        // Inserisci la giornata in work_sessions
+        // insert into work_sessions
         conn.execute(
             r#"
             INSERT INTO work_sessions
@@ -1089,21 +1140,10 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
         inserted_rows += 1;
     }
 
-    // Se siamo arrivati qui, il rebuild è andato a buon fine.
-    // È sicuro eliminare il backup.
+    // success → drop backup
     conn.execute("DROP TABLE IF EXISTS work_sessions_backup", [])?;
 
     conn.execute("COMMIT", [])?;
-    Ok(inserted_rows)
-}
 
-/// Prova a parsare "HH:MM" o "HH:MM:SS".
-fn parse_time(s: &str) -> Option<NaiveTime> {
-    if let Ok(t) = NaiveTime::parse_from_str(s, "%H:%M:%S") {
-        return Some(t);
-    }
-    if let Ok(t) = NaiveTime::parse_from_str(s, "%H:%M") {
-        return Some(t);
-    }
-    None
+    Ok(inserted_rows)
 }

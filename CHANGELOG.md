@@ -1,6 +1,43 @@
 # Changelog
 
-## [0.7.6] - 2025-01-XX
+## [0.7.7] - 2025-12-01
+
+### Added
+
+- Introduced the new `--period` filter for the `db --rebuild` command.
+  The rebuild process can now target a specific time interval instead of
+  processing the entire database.
+- Supported formats:
+    - `all` → rebuild all dates
+    - `YYYY` → rebuild a full year
+    - `YYYY-MM` → rebuild a specific month
+    - `YYYY-MM-DD` → rebuild a single day
+    - `start:end` → rebuild a date range (inclusive)
+
+### Improved
+
+- The rebuild function now parses the period string into a fully prepared
+  SQL query, simplifying the internal logic and improving maintainability.
+- Enhanced clarity and robustness of event selection logic.
+- Reduced query duplication and unified result mapping via a single closure,
+  fixing a previous type mismatch (`E0308`) at compile time.
+
+### Behaviour
+
+- The rebuild process still supports incomplete days (IN-only events), and
+  will generate valid `work_sessions` entries with zero duration.
+- As in v0.7.6, a backup table is created before rebuilding and removed only
+  after a successful commit.
+
+### Notes
+
+This feature enables selective reconstruction of the `work_sessions` table,
+which is particularly useful when dealing with large databases or correcting
+a specific time window without touching the rest of the data.
+
+---
+
+## [0.7.6] - 2025-12-01
 
 ### Added
 
@@ -31,7 +68,7 @@ The feature will be ported to the `0.8.0-alpha2` architecture.
 
 ---
 
-## [0.7.5] - 2025-xx-xx
+## [0.7.5] - 2025-11-21
 
 ### Changed
 
