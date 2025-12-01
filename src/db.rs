@@ -1089,6 +1089,10 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
         inserted_rows += 1;
     }
 
+    // Se siamo arrivati qui, il rebuild è andato a buon fine.
+    // È sicuro eliminare il backup.
+    conn.execute("DROP TABLE IF EXISTS work_sessions_backup", [])?;
+
     conn.execute("COMMIT", [])?;
     Ok(inserted_rows)
 }

@@ -14,13 +14,13 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-### ✨ News in v0.7.6
+## ✨ News in v0.7.6
 
 This maintenance release introduces an important recovery feature for the
 legacy 0.7.x architecture, ensuring full database consistency even when the
 `work_sessions` table becomes empty or desynchronized.
 
-#### 🔄 New: `db --rebuild` Command
+### 🔄 New: `db --rebuild` Command
 
 A new maintenance command has been added:
 
@@ -49,13 +49,13 @@ Key features:
 - The rebuild function now returns the number of reconstructed rows
 - Provides clear CLI output and audit logging
 
-#### 🛠 Why this matters
+### 🛠 Why this matters
 
 In some scenarios (e.g., database corruption, manual edits, legacy migration issues), the work_sessions table may become
 empty while the events table remains intact.
 This feature allows full recovery of the day-by-day session history without data loss.
 
-#### Example output:
+### Example output:
 
 ```bash
 $ rtimelogger db --rebuild
