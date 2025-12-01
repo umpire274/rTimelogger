@@ -56,6 +56,13 @@ pub enum Commands {
         print: bool,
     },
 
+    /// Manage the database schema
+    Db {
+        /// Rebuild the work_sessions table from events
+        #[arg(long = "rebuild", help = "Rebuild the table work_sessions from events")]
+        rebuild: bool,
+    },
+
     /// Add or update a work session
     Add {
         /// Date (YYYY-MM-DD)

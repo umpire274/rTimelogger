@@ -189,6 +189,7 @@ fn main() -> rusqlite::Result<()> {
         }
         Commands::Config { .. } => commands::handle_config(&cli.command)?,
         Commands::Log { .. } => commands::handle_log(&cli.command, &conn)?,
+        Commands::Db { .. } => commands::handle_db(&cli.command, &conn)?,
         Commands::Init => {
             // Already handled, but included for exhaustiveness
         }
