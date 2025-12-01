@@ -1014,7 +1014,7 @@ pub fn rebuild_work_sessions(conn: &Connection) -> Result<u32> {
         let mut latest_out: Option<NaiveTime> = None;
         let mut total_work_minutes: i64 = 0;
 
-        for (_pair_id, pt) in &pairs {
+        for pt in pairs.values() {
             match (pt.in_time, pt.out_time) {
                 (Some(t_in), Some(t_out)) => {
                     earliest_in = Some(match earliest_in {

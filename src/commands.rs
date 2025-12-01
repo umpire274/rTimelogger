@@ -143,23 +143,23 @@ pub fn handle_init(cli: &Cli, db_path: &str) -> rusqlite::Result<()> {
 }
 
 pub fn handle_db(cmd: &Commands, conn: &Connection) -> rusqlite::Result<()> {
-    if let Commands::Db { rebuild } = cmd {
-        if *rebuild {
-            match db::rebuild_work_sessions(&conn) {
-                Ok(rows) => {
-                    println!(
-                        "✅ Rebuilt work_sessions from events ({:?} rows affected)",
-                        rows
-                    );
-                    let _ = db::ttlog(
-                        &conn,
-                        "db",
-                        "Rebuild work_sessions from events",
-                        &format!("Rebuilt work_sessions from events ({:?} rows)", rows),
-                    );
-                }
-                Err(e) => eprintln!("❌ Error rebuilding work_sessions: {}", e),
+    if let Commands::Db { rebuild } = cmd
+        && *rebuild
+    {
+        match db::rebuild_work_sessions(conn) {
+            Ok(rows) => {
+                println!(
+                    "✅ Rebuilt work_sessions from events ({:?} rows affected)",
+                    rows
+                );
+                let _ = db::ttlog(
+                    conn,
+                    "db",
+                    "Rebuild work_sessions from events",
+                    &format!("Rebuilt work_sessions from events ({:?} rows)", rows),
+                );
             }
+            Err(e) => eprintln!("❌ Error rebuilding work_sessions: {}", e),
         }
     }
     Ok(())
