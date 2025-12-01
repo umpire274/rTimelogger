@@ -8,7 +8,7 @@ use rtimelogger::utils::{
 };
 use rtimelogger::{db, logic, utils};
 use rusqlite::Connection;
-use std::io::{stdin, Write};
+use std::io::{Write, stdin};
 use std::path::Path;
 use std::process::Command;
 use std::{fs, io};
@@ -1518,7 +1518,7 @@ fn print_events_table_with_pairs(
         return;
     }
     println!();
-    
+
     // Build lookup id -> (pair, unmatched)
     use std::collections::HashMap;
     let mut meta: HashMap<i32, (usize, bool)> = HashMap::with_capacity(pair_map.len());

@@ -1,5 +1,5 @@
 use chrono::{NaiveTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension, Result, ToSql};
+use rusqlite::{Connection, OptionalExtension, Result, ToSql, params};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 mod migrate;
