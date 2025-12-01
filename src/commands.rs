@@ -143,10 +143,13 @@ pub fn handle_init(cli: &Cli, db_path: &str) -> rusqlite::Result<()> {
 }
 
 pub fn handle_db(cmd: &Commands, conn: &Connection) -> rusqlite::Result<()> {
-    if let Commands::Db { rebuild } = cmd
+    if let Commands::Db { rebuild, period } = cmd
         && *rebuild
     {
-        match db::rebuild_work_sessions(conn) {
+        // Se period è None → default: "all"
+        let period_str = period.as_deref().unwrap_or("all");
+
+        match db::rebuild_work_sessions(conn, period_str) {
             Ok(rows) => {
                 println!(
                     "✅ Rebuilt work_sessions from events ({:?} rows affected)",

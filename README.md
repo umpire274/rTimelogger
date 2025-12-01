@@ -14,53 +14,58 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-## ✨ News in v0.7.6
+## ✨ News in v0.7.7
 
-This maintenance release introduces an important recovery feature for the
-legacy 0.7.x architecture, ensuring full database consistency even when the
-`work_sessions` table becomes empty or desynchronized.
+This release extends the database maintenance tools introduced in v0.7.6 by
+adding support for *targeted* rebuild operations.  
+You can now regenerate the `work_sessions` table for a specific year, month,
+single day, or a date range using the new `--period` option.
 
-### 🔄 New: `db --rebuild` Command
+### 🔄 Filtered Rebuild of `work_sessions`
 
-A new maintenance command has been added:
-
-```bash
-rtimelogger db --rebuild
-```
-
-This command allows you to fully regenerate the work_sessions table from
-the raw events' data.
-
-Key features:
-
-- Rebuilds all work sessions by grouping events by day and pair
-- Supports days containing only an IN event (incomplete days are no longer skipped)
-- Computes:
-    - earliest IN as the daily start_time
-    - latest OUT as the daily end_time
-    - total work duration (sum of all IN/OUT pairs minus lunch breaks)
-    - total daily lunch break
-
-- Determines the daily position:
-    - If all events share the same position → that position is used
-    - If mixed positions are present → M (‘Mixed’) is applied
-
-- Automatically creates a backup of the previous work_sessions table
-- The rebuild function now returns the number of reconstructed rows
-- Provides clear CLI output and audit logging
-
-### 🛠 Why this matters
-
-In some scenarios (e.g., database corruption, manual edits, legacy migration issues), the work_sessions table may become
-empty while the events table remains intact.
-This feature allows full recovery of the day-by-day session history without data loss.
-
-### Example output:
+The `db --rebuild` command now accepts an optional `--period` argument:
 
 ```bash
-$ rtimelogger db --rebuild
-✅ Rebuilt work_sessions from events (184 rows affected)
+rtimelogger db --rebuild --period <value>
 ```
+
+Where `<value>` can be:
+
+| Example               | Meaning                          |
+|-----------------------|----------------------------------|
+| all                   | Rebuild all available dates      |
+| 2025                  | Rebuild the entire year 2025     |
+| 2025-12               | Rebuild only December 2025       |
+| 2025-12-01            | Rebuild only the specified day   |
+| 2025-12-01:2025-12-15 | Rebuild the inclusive date range |
+
+### 💡 How it works
+
+- The period is automatically parsed into the appropriate SQL filter.
+- Only the selected dates are processed; the rest of the database is untouched.
+- The rebuild logic remains identical:
+    - earliest IN = start_time
+    - latest OUT = end_time
+    - duration is computed from all IN/OUT pairs minus lunch breaks
+    - mixed positions → M
+    - IN-only days are still included as partial sessions
+
+- The function returns the number of inserted rows, shown in CLI output.
+
+### Example:
+
+```bash
+$ rtimelogger db --rebuild --period 2025-01
+✅ Rebuilt work_sessions from events (22 rows affected)
+```
+
+### 🛡 Safety
+
+As in v0.7.6:
+
+- A backup (work_sessions_backup) is created before rebuilding
+- It is deleted only after a successful commit
+- In case of an error, the backup remains available for inspection or recovery
 
 ---
 
@@ -295,9 +300,31 @@ Are you sure to delete the pair 1 of the date 2025-10-02 (N/y) ? y
 
 ### Rebuild work_sessions table from events
 
+- All the events present in the `events` table are scanned.
+
 ```bash
 $ rtimelogger db --rebuild
 ✅ Rebuilt work_sessions from events (184 rows affected)
+```
+
+- A certain 'period' can be specified (all, year, month, day, range):
+
+```bash
+$ rtimelogger db --rebuild --period all
+✅ Rebuilt work_sessions from events (184 rows affected)
+
+$ rtimelogger db --rebuild --period 2025
+✅ Rebuilt work_sessions from events (45 rows affected)
+
+$ rtimelogger db --rebuild --period 2025-10
+✅ Rebuilt work_sessions from events (15 rows affected)
+
+$ rtimelogger db --rebuild --period 2025-10-15
+✅ Rebuilt work_sessions from events (1 rows affected)
+
+$ rtimelogger db --rebuild --period 2025-10-01:2025-10-15
+✅ Rebuilt work_sessions from events (10 rows affected)
+
 ```
 
 ### Internal log
@@ -461,8 +488,18 @@ If the `work_sessions` table becomes empty or inconsistent (for example,
 after import issues or database corruption), you can regenerate it using:
 
 ```bash
-rtimelogger db --rebuild
+rtimelogger db --rebuild --period <value>
 ```
+Where `<value>` can be:
+| Example               | Meaning                          |
+|-----------------------|----------------------------------|
+| all                   | Rebuild all available dates      |
+| 2025                  | Rebuild the entire year 2025     |
+| 2025-12               | Rebuild only December 2025       |
+| 2025-12-01            | Rebuild only the specified day   |
+| 2025-12-01:2025-12-15 | Rebuild the inclusive date range |
+
+if `--period` is omitted, the command defaults to `all`.
 
 This command will:
 
@@ -491,9 +528,31 @@ This ensures that no working day is ever lost, even when events are incomplete.
 
 ### Example output
 
+- All the events present in the `events` table are scanned.
+
 ```bash
 $ rtimelogger db --rebuild
 ✅ Rebuilt work_sessions from events (184 rows affected)
+```
+
+- A certain 'period' can be specified (all, year, month, day, range):
+
+```bash
+$ rtimelogger db --rebuild --period all
+✅ Rebuilt work_sessions from events (184 rows affected)
+
+$ rtimelogger db --rebuild --period 2025
+✅ Rebuilt work_sessions from events (45 rows affected)
+
+$ rtimelogger db --rebuild --period 2025-10
+✅ Rebuilt work_sessions from events (15 rows affected)
+
+$ rtimelogger db --rebuild --period 2025-10-15
+✅ Rebuilt work_sessions from events (1 rows affected)
+
+$ rtimelogger db --rebuild --period 2025-10-01:2025-10-15
+✅ Rebuilt work_sessions from events (10 rows affected)
+
 ```
 
 ---
