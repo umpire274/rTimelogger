@@ -1517,6 +1517,8 @@ fn print_events_table_with_pairs(
     if events.is_empty() {
         return;
     }
+    println!();
+    
     // Build lookup id -> (pair, unmatched)
     use std::collections::HashMap;
     let mut meta: HashMap<i32, (usize, bool)> = HashMap::with_capacity(pair_map.len());
