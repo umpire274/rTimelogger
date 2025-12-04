@@ -226,6 +226,7 @@ fn ensure_work_sessions_table(conn: &Connection) -> Result<()> {
             start_time  TEXT    DEFAULT ''  NOT NULL,
             lunch_break INTEGER DEFAULT 0   NOT NULL,
             end_time    TEXT    DEFAULT ''  NOT NULL,
+            work_duration INTEGER DEFAULT 0  -- minuti netti: (end-start)-lunch
             CHECK (position IN ('O', 'R', 'H', 'C', 'M'))
         );
 
