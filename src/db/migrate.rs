@@ -49,7 +49,7 @@ fn upgrade_legacy_log_schema(conn: &Connection) -> Result<()> {
         conn.execute_batch(
             r#"
             ALTER TABLE log RENAME TO log_old;
-            CREATE TABLE log (
+            CREATE TABLE IF NOT EXISTS log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL,
                 operation TEXT NOT NULL,
@@ -291,7 +291,8 @@ pub fn run_pending_migrations(conn: &Connection) -> Result<(), Error> {
             position TEXT NOT NULL DEFAULT 'O' CHECK (position IN ('O','R','H','C','M')),
             start_time TEXT NOT NULL DEFAULT '',
             lunch_break INTEGER NOT NULL DEFAULT 0,
-            end_time TEXT NOT NULL DEFAULT ''
+            end_time TEXT NOT NULL DEFAULT '',
+            work_duration INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -346,13 +347,14 @@ fn migrate_to_030_rel(conn: &Connection) -> Result<()> {
             "
                 ALTER TABLE work_sessions RENAME TO work_sessions_old;
 
-                CREATE TABLE work_sessions (
+                CREATE TABLE IF NOT EXISTS work_sessions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     date TEXT NOT NULL,
-                    position TEXT NOT NULL CHECK(position IN ('O','R','H')),
-                    start_time TEXT DEFAULT '',
-                    lunch_break INTEGER DEFAULT 0,
-                    end_time TEXT DEFAULT ''
+                    position TEXT NOT NULL DEFAULT 'O' CHECK (position IN ('O','R','H','C','M')),
+                    start_time TEXT NOT NULL DEFAULT '',
+                    lunch_break INTEGER NOT NULL DEFAULT 0,
+                    end_time TEXT NOT NULL DEFAULT '',
+                    work_duration INTEGER NOT NULL DEFAULT 0
                 );
 
                 INSERT INTO work_sessions (id, date, position, start_time, lunch_break, end_time)
@@ -389,13 +391,14 @@ fn migrate_to_032_rel(conn: &Connection) -> Result<()> {
             "
                 ALTER TABLE work_sessions RENAME TO work_sessions_old;
 
-                CREATE TABLE work_sessions (
+                CREATE TABLE IF NOT EXISTS work_sessions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     date TEXT NOT NULL,
-                    position TEXT NOT NULL CHECK(position IN ('O','R','H','C')),
-                    start_time TEXT DEFAULT '',
-                    lunch_break INTEGER DEFAULT 0,
-                    end_time TEXT DEFAULT ''
+                    position TEXT NOT NULL DEFAULT 'O' CHECK (position IN ('O','R','H','C','M')),
+                    start_time TEXT NOT NULL DEFAULT '',
+                    lunch_break INTEGER NOT NULL DEFAULT 0,
+                    end_time TEXT NOT NULL DEFAULT '',
+                    work_duration INTEGER NOT NULL DEFAULT 0
                 );
 
                 INSERT INTO work_sessions (id, date, position, start_time, lunch_break, end_time)
@@ -660,13 +663,14 @@ fn migrate_to_038_add_m(conn: &Connection) -> Result<()> {
             "
             ALTER TABLE work_sessions RENAME TO work_sessions_old;
 
-            CREATE TABLE work_sessions (
+            CREATE TABLE IF NOT EXISTS work_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT NOT NULL,
-                position TEXT NOT NULL CHECK(position IN ('O','R','H','C','M')),
-                start_time TEXT DEFAULT '',
-                lunch_break INTEGER DEFAULT 0,
-                end_time TEXT DEFAULT ''
+                position TEXT NOT NULL DEFAULT 'O' CHECK (position IN ('O','R','H','C','M')),
+                start_time TEXT NOT NULL DEFAULT '',
+                lunch_break INTEGER NOT NULL DEFAULT 0,
+                end_time TEXT NOT NULL DEFAULT '',
+                work_duration INTEGER NOT NULL DEFAULT 0
             );
 
             INSERT INTO work_sessions (id, date, position, start_time, lunch_break, end_time)

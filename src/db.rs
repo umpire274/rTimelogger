@@ -1,5 +1,5 @@
 use chrono::{NaiveTime, Utc};
-use rusqlite::{Connection, OptionalExtension, Result, ToSql, params};
+use rusqlite::{params, Connection, OptionalExtension, Result, ToSql};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 mod migrate;
@@ -167,13 +167,13 @@ pub fn init_db(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS work_sessions (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            date         TEXT NOT NULL,          -- YYYY-MM-DD
-            position     TEXT NOT NULL DEFAULT 'O' CHECK (position IN ('O','R','H','C','M')),
-            start_time   TEXT NOT NULL DEFAULT '',
-            lunch_break  INTEGER NOT NULL DEFAULT 0,
-            end_time     TEXT NOT NULL DEFAULT '',
-            work_duration INTEGER DEFAULT 0  -- minuti netti: (end-start)-lunch
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            position TEXT NOT NULL DEFAULT 'O' CHECK (position IN ('O','R','H','C','M')),
+            start_time TEXT NOT NULL DEFAULT '',
+            lunch_break INTEGER NOT NULL DEFAULT 0,
+            end_time TEXT NOT NULL DEFAULT '',
+            work_duration INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS log (
@@ -1125,7 +1125,7 @@ pub fn rebuild_work_sessions(conn: &Connection, period: &str) -> Result<u32> {
             INSERT INTO work_sessions
                 (date, position, start_time, lunch_break, end_time, work_duration)
             VALUES
-                (?1,  ?2,       ?3,         ?4,          ?5,        ?6)
+                (?1, ?2, ?3, ?4, ?5, ?6)
             "#,
             params![
                 date,
