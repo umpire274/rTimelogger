@@ -14,6 +14,37 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
+### ✨ New in 0.8.0-alpha2
+
+**✔ Fully redesigned `add` command**
+
+The `add` command now uses a clean and explicit syntax based entirely on flags.
+The only positional argument is now the **date**.
+
+Old syntax (deprecated):
+
+```bash
+rtimelogger add 2025-09-13 O 09:00 60 17:30
+```
+
+New syntax (stable):
+
+```bash
+rtimelogger add 2025-09-13 --pos O --in 09:00 --lunch 60 --out 17:30
+```
+
+This redesign removes ambiguity, improves clarity, and aligns the command with
+the rest of the CLI.
+
+Key improvements:
+
+- No more positional parameters for position, IN, OUT, lunch
+- All parameters must now be passed via flags (`--pos`, `--in`, `--out`, `--lunch`)
+- Editing is cleaner and explicit via `--edit --pair N`
+- Future-proof: easy to extend without breaking changes
+
+---
+
 ## 🚀 What's New in **v0.8.0-alpha1**
 
 This is the largest rewrite of **rtimelogger** to date.  
@@ -178,6 +209,144 @@ Override DB path at runtime:
 ```bash
 rtimelogger --db /custom/path/mydb.sqlite <command>
 ```
+
+---
+
+## ➕ Add a Work Session — `rtimelogger add`
+
+Starting from version **0.8.0-alpha2**, the `add` command has been fully
+redesigned to use a clean, explicit, and modern flag-based syntax.
+
+The only positional argument is now the **date**.  
+All other values (position, IN time, OUT time, lunch break, edits) must
+be specified using flags.
+
+This provides clearer semantics, eliminates ambiguity, and enables future
+extensions without breaking the CLI.
+
+---
+
+### 🔧 Usage
+
+```bash
+rtimelogger add <DATE> [OPTIONS]
+```
+
+Where:
+
+- `<DATE>` is mandatory
+- all other parameters are optional flags
+
+### 🏷 Supported Options
+
+| Flag                | Description                                    | Example     |
+|---------------------|------------------------------------------------|-------------|
+| `--pos <POSITION>`  | Work position (O, R, H, C, M)                  | --pos O     |
+| `--in <HH:MM>`      | Clock-in time (HH:MM                           | --in 08:50  |
+| `--out <HH:MM>`     | Clock-out time (HH:MM)                         | --out 17:30 |
+| `--lunch <MINUTES>` | Lunch break in minutes                         | --lunch 45  |
+| `--edit`            | Edit existing pair (requires `--pair`)         | --edit      |
+| `--pair <N>`        | Select the N-th IN/OUT pair of the day to edit | --pair 1    |
+
+### 🧠 Behavioral Rules
+
+#### ▶ IN only
+
+Adds a new open work session:
+
+```bash
+rtimelogger add 2025-09-15 --in 09:00
+```
+
+#### ⏸ OUT only
+
+Closes the last open work session:
+
+```bash
+rtimelogger add 2025-09-15 --out 17:30
+```
+
+#### ▶ IN + OUT
+
+Creates a full IN/OUT pair:
+
+```bash
+rtimelogger add 2025-09-15 --in 09:00 --out 17:30
+```
+
+#### 🏷️ Position only
+
+Sets or updates working position for the last pair:
+
+```bash
+rtimelogger add 2025-09-15 --pos R
+```
+
+#### 🍽️ Lunch only
+
+Sets or updates lunch break for the last pair:
+
+```bash
+rtimelogger add 2025-09-15 --lunch 60
+```
+
+#### ✏️ Edit existing pair
+
+Modify an existing pair on the selected date (requires `--pair N`):
+
+```bash
+rtimelogger add 2025-12-03 --edit --pair 1 --out 15:30
+```
+
+### 📝 Examples
+
+#### Add a regular IN
+
+```bash
+rtimelogger add 2025-09-15 --in 09:00
+```
+
+#### Add a regular OUT
+
+```bash
+rtimelogger add 2025-09-15 --out 17:30
+```
+
+#### Add a full IN/OUT pair with lunch
+
+```bash
+rtimelogger add 2025-09-15 --in 09:00 --lunch 60 --out 17:30
+```
+
+#### Set position to Remote
+
+```bash
+rtimelogger add 2025-09-15 --pos R
+```
+
+#### Edit pair 1 to change OUT time
+
+```bash
+rtimelogger add 2025-12-03 --edit --pair 1 --out 15:30
+```
+
+### 🚀 Why this change?
+
+The previous syntax mixed positional arguments and flags:
+
+```bash
+rtimelogger add 2025-09-13 O 09:00 60 17:30
+```
+
+This created ambiguity and made the command hard to extend.
+
+The new syntax:
+
+- is cleaner
+- is explicit
+- avoids misinterpretation
+- supports new features without breaking compatibility
+- follows best practices of modern CLI tools
 
 ---
 
@@ -435,12 +604,6 @@ Notes:
 - **JSON schemas**:
     - Raw events: fields from DB + `pair`, `unmatched`.
     - Summary: `date, pair, position, start, end, lunch_minutes, duration_minutes, unmatched`.
-
----
-
-## ⚙️ Configuration (duplicate quick ref)
-
-(See above primary configuration section.)
 
 ---
 
