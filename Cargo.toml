@@ -1,6 +1,6 @@
 [package]
 name = "rtimelogger"
-version = "0.8.0-alpha1"
+version = "0.8.0-alpha2"
 edition = "2024"
 authors = ["Umpire274 <umpire274@gmail.com>"]
 description = "A simple cross-platform CLI tool to track working hours, lunch breaks, and calculate surplus time"
@@ -19,7 +19,7 @@ include = [
 ]
 
 [build-dependencies]
-winresource = "0.1.27"
+winresource = "0.1.28"
 
 [package.metadata.winresource]
 OriginalFilename = "rtimelogger.exe"

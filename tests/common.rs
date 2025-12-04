@@ -68,7 +68,7 @@ pub fn init_db_with_data(db_path: &str) {
 pub fn populate_many_sessions(db_path: &str, n: usize) {
     let conn = rusqlite::Connection::open(db_path).expect("open db");
     // ensure initialized
-    rtimelogger::db::init_db(&conn).expect("init db");
+    rtimelogger::db::initialize::init_db(&conn).expect("init db");
     for i in 0..n {
         // generate dates in a range
         let day = (i % 28) + 1; // 1..28

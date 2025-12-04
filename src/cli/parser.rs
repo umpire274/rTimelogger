@@ -53,25 +53,38 @@ pub enum Commands {
 
     /// Add or update a work session
     Add {
+        /// Date of the event (YYYY-MM-DD)
         date: String,
-        pos_pos: Option<String>,
-        start_pos: Option<String>,
-        lunch_pos: Option<i32>,
-        end_pos: Option<String>,
 
-        #[arg(long = "pos")]
+        /// Position (O = Office, R = Remote, H = Home, C = Client, M = Mixed)
+        #[arg(
+            long = "pos",
+            help = "Work position: O=Office, R=Remote, H=Home, C=Client, M=Mixed"
+        )]
         pos: Option<String>,
-        #[arg(long = "in")]
+
+        /// Clock-in time (HH:MM)
+        #[arg(long = "in", help = "Clock-in time (HH:MM)")]
         start: Option<String>,
-        #[arg(long = "lunch")]
+
+        /// Lunch break in minutes
+        #[arg(long = "lunch", help = "Lunch break duration in minutes")]
         lunch: Option<i32>,
-        #[arg(long = "out")]
+
+        /// Clock-out time (HH:MM)
+        #[arg(long = "out", help = "Clock-out time (HH:MM)")]
         end: Option<String>,
 
-        #[arg(long = "pair", help = "Pair id to edit (with --edit)")]
+        /// Edit an existing pair instead of creating a new one
+        #[arg(long = "pair", help = "Pair ID to edit (used with --edit)")]
         edit_pair: Option<usize>,
 
-        #[arg(long = "edit", help = "Edit existing pair (use with --pair)")]
+        /// Enable edit mode (requires --pair)
+        #[arg(
+            long = "edit",
+            requires = "edit_pair",
+            help = "Edit existing pair instead of creating a new one"
+        )]
         edit: bool,
     },
 

@@ -34,7 +34,6 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
             let events = load_events_by_date(&mut pool, &d)?;
 
             if events.is_empty() {
-                println!("No events for {}", d);
                 continue;
             }
 

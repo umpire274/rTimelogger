@@ -3,16 +3,13 @@ use crate::core::add::AddLogic;
 use crate::db::pool::DbPool;
 use crate::errors::{AppError, AppResult};
 use crate::models::location::Location;
-use crate::utils::{date, time};
+use crate::utils::date;
+use crate::utils::time::parse_optional_time;
 
 /// Add or update a work session.
 pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
     if let Commands::Add {
         date,
-        pos_pos,
-        start_pos,
-        lunch_pos,
-        end_pos,
         pos,
         start,
         lunch,
@@ -22,79 +19,52 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
     } = cmd
     {
         //
-        // 1. Parse date (obbligatoria)
+        // 1. Parse date (mandatory)
         //
         let d = date::parse_date(date).ok_or_else(|| AppError::InvalidDate(date.to_string()))?;
 
         //
-        // 2. Determina posizione finale
+        // 2. Parse position (default = Office)
         //
-        let pos_raw = pos
-            .as_ref()
-            .map(|s| s.as_str())
-            .or(pos_pos.as_ref().map(|s| s.as_str()));
-
-        let pos_final = match pos_raw {
+        let pos_final = match pos {
             Some(code) => Location::from_code(code)
                 .ok_or_else(|| AppError::InvalidPosition(code.to_string()))?,
-            None => Location::Office, // default se nulla è specificato
+            None => Location::Office,
         };
 
         //
-        // 3. Parse orario di IN
+        // 3. Parse IN time (optional)
         //
-        let start_raw = start
-            .as_ref()
-            .map(|s| s.as_str())
-            .or(start_pos.as_ref().map(|s| s.as_str()));
-
-        let start_parsed = match start_raw {
-            Some(s) => {
-                let t = time::parse_time(s).ok_or_else(|| AppError::InvalidTime(s.to_string()))?;
-                Some(t)
-            }
-            None => None,
-        };
+        let start_parsed = parse_optional_time(start.as_ref());
 
         //
-        // 4. Parse orario di OUT
+        // 4. Parse OUT time (optional)
         //
-        let end_raw = end
-            .as_ref()
-            .map(|s| s.as_str())
-            .or(end_pos.as_ref().map(|s| s.as_str()));
-
-        let end_parsed = match end_raw {
-            Some(s) => {
-                let t = time::parse_time(s).ok_or_else(|| AppError::InvalidTime(s.to_string()))?;
-                Some(t)
-            }
-            None => None,
-        };
+        let end_parsed = parse_optional_time(end.as_ref());
 
         //
-        // 5. Pausa pranzo: qui vogliamo sapere se l'utente l'ha specificata davvero
+        // 5. Parse lunch break (optional)
         //
-        let lunch_opt: Option<i32> = lunch.or(*lunch_pos);
+        let lunch_opt = *lunch; // lunch è Option<i32>
 
         //
-        // 6. Apri DB dal path configurato
+        // 6. Open DB
         //
         let mut pool = DbPool::new(&cfg.database)?;
 
         //
-        // 7. Delego la logica business
+        // 7. Execute logic
         //
         AddLogic::apply(
             &mut pool,
             d,
             pos_final,
-            start_parsed,
+            start_parsed.unwrap(),
             lunch_opt,
-            end_parsed,
+            end_parsed.unwrap(),
             *edit,
             *edit_pair,
-            pos.clone(),
+            pos.clone(), // used for audit logging
         )?;
     }
 

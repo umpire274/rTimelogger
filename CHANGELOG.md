@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.8.0-alpha2] - 2025-XX-XX
+
+### Changed
+
+- The `add` command has been fully redesigned to use a cleaner and more
+  explicit flag-based syntax. Positional parameters have been removed,
+  except for the required `date` argument.
+- The legacy positional fields (`pos_pos`, `start_pos`, `lunch_pos`,
+  `end_pos`) have been removed from the CLI parser and internal API.
+- The new syntax is now:
+  ```bash
+  rtimelogger add <date> --pos <code> --in HH:MM --out HH:MM --lunch <min>
+  ```
+
+Examples:
+
+- `rtimelogger add 2025-12-03 --pos r --in 08:50`
+- `rtimelogger add 2025-12-03 --in 09:00 --out 17:30 --lunch 45`
+- `rtimelogger add 2025-12-03 --edit --pair 1 --out 15:30`
+
+### Added
+
+- The `add` command now supports explicit, optional flags for:
+- `--pos` (location)
+- `--in`
+- `--out`
+- `--lunch`
+- `--pair`
+- `--edit`
+
+This makes the command behavior clearer, more consistent, and easier to
+extend in future releases.
+
+### Improved
+
+- The `handle()` function for the `add` command has been simplified.
+  It now processes only the new flag-based syntax and no longer merges
+  legacy positional parameters.
+- The business logic `AddLogic::apply()` has been refactored to remove
+  all references to positional parameter fallbacks.
+- Edit mode logic has been preserved and improved:
+- Explicit flags override only the fields passed by the user
+- IN-only, OUT-only, and lunch-only operations are now more predictable
+- Invalid combinations generate clearer error messages
+
+### Notes
+
+This release marks the beginning of the new 0.8.x CLI design, which will
+gradually replace the legacy positional-parameter architecture with a
+cleaner, more maintainable, and future-proof flag-only approach.
+
+---
+
 ## [0.8.0-alpha1] - 2025-11-30
 
 ### 🚀 Major Refactor & Architecture Overhaul
