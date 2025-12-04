@@ -206,6 +206,74 @@ rTimeLogger's internal engine is now finally stable and extensible.
 
 ---
 
+## [0.7.7] - 2025-12-01
+
+### Added
+
+- Introduced the new `--period` filter for the `db --rebuild` command.
+  The rebuild process can now target a specific time interval instead of
+  processing the entire database.
+- Supported formats:
+    - `all` → rebuild all dates
+    - `YYYY` → rebuild a full year
+    - `YYYY-MM` → rebuild a specific month
+    - `YYYY-MM-DD` → rebuild a single day
+    - `start:end` → rebuild a date range (inclusive)
+
+### Improved
+
+- The rebuild function now parses the period string into a fully prepared
+  SQL query, simplifying the internal logic and improving maintainability.
+- Enhanced clarity and robustness of event selection logic.
+- Reduced query duplication and unified result mapping via a single closure,
+  fixing a previous type mismatch (`E0308`) at compile time.
+
+### Behaviour
+
+- The rebuild process still supports incomplete days (IN-only events), and
+  will generate valid `work_sessions` entries with zero duration.
+- As in v0.7.6, a backup table is created before rebuilding and removed only
+  after a successful commit.
+
+### Notes
+
+This feature enables selective reconstruction of the `work_sessions` table,
+which is particularly useful when dealing with large databases or correcting
+a specific time window without touching the rest of the data.
+
+---
+
+## [0.7.6] - 2025-12-01
+
+### Added
+
+- Introduced the new `db --rebuild` command to fully regenerate the `work_sessions` table from the raw `events` table.
+- Added automatic backup of the existing `work_sessions` table before rebuilding.
+- Added support for incomplete days (days containing only `IN` events), which now generate a valid `work_sessions` entry
+  with an empty `end_time` and zero duration.
+- The rebuild function now returns the number of rows inserted, allowing for detailed logging and user feedback.
+
+### Improved
+
+- Daily position is now correctly computed based on all events of the day:
+    - If all events share the same position → that position is used.
+    - If mixed positions are present → the position is set to `M`.
+- Daily work duration is computed by summing the durations of all IN/OUT pairs and subtracting the total lunch break.
+- Improved safety of time parsing and error handling during event processing.
+
+### Fixed
+
+- Addressed an issue where missing or inconsistent data in `work_sessions` could cause the `list` command to falsely
+  report “No recorded sessions found”.
+- Ensures full database integrity for legacy 0.7.x installations.
+
+### Notes
+
+This fix is essential for restoring consistency in production databases.
+The feature will be ported to the `0.8.0-alpha2` architecture.
+
+---
+
 ## [0.7.5] - 2025-11-21
 
 ### Changed
