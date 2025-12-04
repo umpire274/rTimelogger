@@ -21,3 +21,16 @@ pub fn mins2readable(mins: i64) -> String {
     let m = mins.abs();
     format!("{}{:02}:{:02}", sign, m / 60, m % 60)
 }
+
+/// Restituisce una descrizione testuale e un colore ANSI per la posizione.
+/// Usata nei test e in eventuali output human-readable.
+pub fn describe_position(code: &str) -> (String, &'static str) {
+    match code.to_uppercase().as_str() {
+        "O" => ("Office".into(), "\x1b[34m"),
+        "R" => ("Remote".into(), "\x1b[36m"),
+        "C" => ("On-site (Client)".into(), "\x1b[33m"),
+        "H" => ("Holiday".into(), "\x1b[45;97;1m"),
+        "M" => ("Mixed".into(), "\x1b[35m"),
+        other => (other.to_string(), "\x1b[0m"),
+    }
+}
