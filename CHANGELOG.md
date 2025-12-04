@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.0-alpha2] - 2025-XX-XX
+## [0.8.0-alpha2] - 2025-12-04
 
 ### Changed
 
