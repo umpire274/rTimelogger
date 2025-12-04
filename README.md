@@ -14,58 +14,61 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
-## ✨ News in v0.7.7
+## 🚀 What's New in **v0.8.0-alpha1**
 
-This release extends the database maintenance tools introduced in v0.7.6 by
-adding support for *targeted* rebuild operations.  
-You can now regenerate the `work_sessions` table for a specific year, month,
-single day, or a date range using the new `--period` option.
+This is the largest rewrite of **rtimelogger** to date.  
+The internal event model, database logic, and CLI behavior have all been redesigned for correctness, consistency, and
+long-term maintainability.
 
-### 🔄 Filtered Rebuild of `work_sessions`
+### ✅ Major Changes
 
-The `db --rebuild` command now accepts an optional `--period` argument:
+- **New event model**
+    - `timestamp` removed → now separated into `date` + `time`.
+    - New fields: `pair`, `location`, `lunch_break`, `meta`, `source`, `created_at`.
+    - All parsing/formatting logic updated across the CLI.
 
-```bash
-rtimelogger db --rebuild --period <value>
-```
+- **Database redesign**
+    - Fully rewritten queries using the new schema.
+    - Automatic **pair recalculation** after each insert/edit/delete.
+    - Guaranteed chronological ordering and consistent pairing logic.
 
-Where `<value>` can be:
+- **Improved `add` command**
+    - All parameters are now **fully optional** except the date.
+    - Smart defaults:
+        - Position defaults to previous event’s position.
+        - Lunch and end time can be added independently.
+    - Full **edit mode** with `--edit --pair N`.
 
-| Example               | Meaning                          |
-|-----------------------|----------------------------------|
-| all                   | Rebuild all available dates      |
-| 2025                  | Rebuild the entire year 2025     |
-| 2025-12               | Rebuild only December 2025       |
-| 2025-12-01            | Rebuild only the specified day   |
-| 2025-12-01:2025-12-15 | Rebuild the inclusive date range |
+- **Improved `del` command**
+    - Safe deletion with interactive **confirmation prompts**.
+    - Can remove either a full day or a specific pair.
+    - Automatic pair number recalculation after deletion.
 
-### 💡 How it works
+### 📄 New & Improved Commands
 
-- The period is automatically parsed into the appropriate SQL filter.
-- Only the selected dates are processed; the rest of the database is untouched.
-- The rebuild logic remains identical:
-    - earliest IN = start_time
-    - latest OUT = end_time
-    - duration is computed from all IN/OUT pairs minus lunch breaks
-    - mixed positions → M
-    - IN-only days are still included as partial sessions
+- **`log`**
+    - ANSI-colored output.
+    - Dynamic column width.
+    - Automatic timestamp normalization (`%FT%T`).
+    - Combined `operation + target` column with intelligent alignment.
 
-- The function returns the number of inserted rows, shown in CLI output.
+- **`backup`**
+    - Full rewrite.
+    - Supports ZIP compression.
+    - Logs backup operations internally.
 
-### Example:
+- **`export`**
+    - Complete refactor: CSV, JSON, XLSX, PDF.
+    - XLSX export rewritten with styling, date/time detection, column autosizing.
+    - PDF export stabilized.
 
-```bash
-$ rtimelogger db --rebuild --period 2025-01
-✅ Rebuilt work_sessions from events (22 rows affected)
-```
+### 🛠 Internal Improvements
 
-### 🛡 Safety
-
-As in v0.7.6:
-
-- A backup (work_sessions_backup) is created before rebuilding
-- It is deleted only after a successful commit
-- In case of an error, the backup remains available for inspection or recovery
+- New helpers for date/time parsing and validation.
+- Consistent error model across modules.
+- Better `DbPool` usage and cleanup.
+- Large reduction in duplicated logic.
+- Much cleaner separation between CLI layer, core logic, and DB layer.
 
 ---
 
@@ -298,35 +301,6 @@ Are you sure to delete the pair 1 of the date 2025-10-02 (N/y) ? y
 🗑️  Deleted 1 event(s) for pair 1 on 2025-10-02
 ```
 
-### Rebuild work_sessions table from events
-
-- All the events present in the `events` table are scanned.
-
-```bash
-$ rtimelogger db --rebuild
-✅ Rebuilt work_sessions from events (184 rows affected)
-```
-
-- A certain 'period' can be specified (all, year, month, day, range):
-
-```bash
-$ rtimelogger db --rebuild --period all
-✅ Rebuilt work_sessions from events (184 rows affected)
-
-$ rtimelogger db --rebuild --period 2025
-✅ Rebuilt work_sessions from events (45 rows affected)
-
-$ rtimelogger db --rebuild --period 2025-10
-✅ Rebuilt work_sessions from events (15 rows affected)
-
-$ rtimelogger db --rebuild --period 2025-10-15
-✅ Rebuilt work_sessions from events (1 rows affected)
-
-$ rtimelogger db --rebuild --period 2025-10-01:2025-10-15
-✅ Rebuilt work_sessions from events (10 rows affected)
-
-```
-
 ### Internal log
 
 ```bash
@@ -473,87 +447,6 @@ Notes:
 ## 🗄️ Database migrations
 
 *(unchanged – see CHANGELOG for past versions)*
-
----
-
-## 🔧 Database Maintenance Tools
-
-Starting from **rTimelogger 0.7.6**, the application includes a new
-maintenance command that allows you to rebuild the `work_sessions` table
-directly from the raw `events` data.
-
-### 🔄 Rebuild the `work_sessions` Table
-
-If the `work_sessions` table becomes empty or inconsistent (for example,
-after import issues or database corruption), you can regenerate it using:
-
-```bash
-rtimelogger db --rebuild --period <value>
-```
-Where `<value>` can be:
-| Example               | Meaning                          |
-|-----------------------|----------------------------------|
-| all                   | Rebuild all available dates      |
-| 2025                  | Rebuild the entire year 2025     |
-| 2025-12               | Rebuild only December 2025       |
-| 2025-12-01            | Rebuild only the specified day   |
-| 2025-12-01:2025-12-15 | Rebuild the inclusive date range |
-
-if `--period` is omitted, the command defaults to `all`.
-
-This command will:
-
-- Backup the current work_sessions table into work_sessions_backup
-- Scan all records in the events table (legacy architecture)
-- Recompute:
-    - Daily start/end times
-    - Session durations
-    - Lunch breaks
-    - Daily positions (or fallback to M if mixed)
-- Create a single consolidated record per day
-- Insert the reconstructed rows into work_sessions
-- Print the number of reconstructed sessions
-
-### 📌 Handling Incomplete Days
-
-Days that contain only an IN event (no corresponding OUT) will still
-generate a valid session:
-
-- start_time = time of the first IN event
-- end_time = empty string
-- work_duration = 0
-- position determined from the day's events
-
-This ensures that no working day is ever lost, even when events are incomplete.
-
-### Example output
-
-- All the events present in the `events` table are scanned.
-
-```bash
-$ rtimelogger db --rebuild
-✅ Rebuilt work_sessions from events (184 rows affected)
-```
-
-- A certain 'period' can be specified (all, year, month, day, range):
-
-```bash
-$ rtimelogger db --rebuild --period all
-✅ Rebuilt work_sessions from events (184 rows affected)
-
-$ rtimelogger db --rebuild --period 2025
-✅ Rebuilt work_sessions from events (45 rows affected)
-
-$ rtimelogger db --rebuild --period 2025-10
-✅ Rebuilt work_sessions from events (15 rows affected)
-
-$ rtimelogger db --rebuild --period 2025-10-15
-✅ Rebuilt work_sessions from events (1 rows affected)
-
-$ rtimelogger db --rebuild --period 2025-10-01:2025-10-15
-✅ Rebuilt work_sessions from events (10 rows affected)
-
-```
 
 ---
 

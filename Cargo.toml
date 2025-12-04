@@ -1,6 +1,6 @@
 [package]
 name = "rtimelogger"
-version = "0.7.7"
+version = "0.8.0-alpha1"
 edition = "2024"
 authors = ["Umpire274 <umpire274@gmail.com>"]
 description = "A simple cross-platform CLI tool to track working hours, lunch breaks, and calculate surplus time"
@@ -31,7 +31,6 @@ Icon = "res/rtimelogger.ico"
 
 [dependencies]
 rusqlite = { version = "0.37.0", features = ["bundled"] }
-chrono = "0.4.42"
 clap = { version = "4.5.53", features = ["derive"] }
 predicates = "3.1.3"
 assert_cmd = "2.1.1"
@@ -45,3 +44,9 @@ csv = "1.4.0"
 rust_xlsxwriter = "0.92.2"
 unicode-width = "0.2.2"
 pdf-writer = "0.14.0"
+dirs = "6.0.0"
+thiserror = "2.0.17"
+chrono = { version = "0.4.42", features = ["serde"] }
+time = "0.3.44"
+ansi_term = "0.12.1"
+regex = "1.12.2"
