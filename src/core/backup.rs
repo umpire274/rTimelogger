@@ -4,8 +4,8 @@ use crate::errors::AppResult;
 use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
-use zip::write::FileOptions;
 use zip::ZipWriter;
+use zip::write::FileOptions;
 
 pub struct BackupLogic;
 
