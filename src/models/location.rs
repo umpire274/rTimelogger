@@ -41,4 +41,26 @@ impl Location {
     pub fn from_code(code: &str) -> Option<Self> {
         Location::from_db_str(&code.to_uppercase())
     }
+
+    /// Human-readable label for printing
+    pub fn label(&self) -> &'static str {
+        match self {
+            Location::Office => "Office",
+            Location::Remote => "Remote",
+            Location::Holiday => "Holiday",
+            Location::OnSite => "On-site (Client)",
+            Location::Mixed => "Mixed",
+        }
+    }
+
+    /// ANSI color code used when printing in list mode
+    pub fn color(&self) -> &'static str {
+        match self {
+            Location::Office => "\x1b[34m",       // blue
+            Location::Remote => "\x1b[36m",       // cyan
+            Location::Holiday => "\x1b[45;97;1m", // magenta bg, white bold
+            Location::OnSite => "\x1b[33m",       // yellow
+            Location::Mixed => "\x1b[35m",        // purple
+        }
+    }
 }

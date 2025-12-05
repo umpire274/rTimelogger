@@ -84,7 +84,7 @@ fn migrate_add_pair_to_events(conn: &Connection) -> Result<()> {
 
         ALTER TABLE events RENAME TO events_old;
 
-        CREATE TABLE events (
+        CREATE TABLE IF NOT EXISTS events (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             date         TEXT NOT NULL,
             time         TEXT NOT NULL,

@@ -1,30 +1,13 @@
+use crate::config::Config;
 use crate::core::calculator::timeline::Timeline;
+use crate::core::logic::Core;
 
-pub fn calculate_expected(timeline: &Timeline) -> i64 {
+/// Expected = minuti teorici da lavorare in un giorno (da config).
+pub fn calculate_expected(timeline: &Timeline, cfg: &Config) -> i64 {
     if timeline.pairs.is_empty() {
-        return 0;
+        return 0; // nessun evento ⇒ niente expected
     }
 
-    let first_in = &timeline.pairs[0].in_event.timestamp();
-    let last_out = timeline
-        .pairs
-        .iter()
-        .filter_map(|p| p.out_event.as_ref())
-        .next_back()
-        .map(|ev| ev.timestamp());
-
-    if let Some(end) = last_out {
-        let total = (end - *first_in).num_minutes();
-
-        // Lunch: sum of all lunches
-        let lunch_total: i64 = timeline
-            .pairs
-            .iter()
-            .map(|p| p.in_event.lunch.unwrap_or(0) as i64)
-            .sum();
-
-        total - lunch_total
-    } else {
-        0
-    }
+    // Es: "7h 36m" → 456
+    Core::parse_work_duration_to_minutes(&cfg.min_work_duration)
 }

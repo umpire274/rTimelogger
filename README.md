@@ -14,6 +14,54 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
+## ✨ New in v0.8.0-beta1
+
+### 🚀 Major changes (command `list`)
+
+- The `list` command has been fully rewritten to use the new **timeline-based model**.
+- Rendering no longer depends on the legacy `work_sessions` table; it now uses  
+  `events → timeline → pairs`.
+- Improved readability with a **clean, aligned layout**, color-coded values, and consistent terminology.
+- Added **automatic month separators** when `--period` spans multiple months.
+- Reworked behavior of `--now`, `--details`, and `--events` for consistency.
+
+### 🕒 Computation improvements
+
+- **Expected Exit** is now correctly computed as:  
+  `expected = start_time + work_duration + lunch_minutes`.
+- **Daily surplus** is now strictly:  
+  `surplus = end_time – expected`,  
+  avoiding double-counting issues from previous versions.
+- Enhanced `mins2readable()`:
+    - short format: `+02:25`
+    - long format: `+02h 25m`
+    - supports optional ANSI coloring via helper functions.
+
+### 🎨 Output & formatting enhancements
+
+- Intelligent ANSI coloring:
+    - **green** → positive surplus
+    - **red** → negative surplus
+    - **gray** → missing or undefined fields (`--:--`, `-`, `- min`)
+- Consistent column alignment for a professional, stable layout.
+- Centralized color helpers (`gray()`, `green()`, `red()`, `reset()`).
+
+### 🔧 Internal refactoring
+
+- Complete rewrite of `print_daily_summary_row()` with timeline logic.
+- Unified color utilities in `formatting.rs`.
+- Improved handling of partial and incomplete event pairs.
+- Cleanup of legacy paths and duplicated code.
+
+### 🧹 Fixes
+
+- Fixed Expected Exit not correctly reflecting lunch duration.
+- Fixed lunch display being shown as `--:--` even when present.
+- Fixed formatting bugs in total surplus output.
+- Fixed inconsistencies between `list` and `list --events`.
+
+---
+
 ### ✨ New in 0.8.0-alpha2
 
 **✔ Fully redesigned `add` command**

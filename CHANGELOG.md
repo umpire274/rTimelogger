@@ -1,5 +1,69 @@
 # Changelog
 
+## [0.8.0-beta1] – 2025-XX-XX *(provisional)*
+
+### 🚀 Major changes – `list` command overhaul
+
+* Fully rewritten **`list` output**, now powered exclusively by the new timeline model.
+* Dropped usage of the legacy `work_sessions` table for rendering.
+* The command now operates on → `events` → `timeline` → `pairs`.
+* Introduced a **cleaner, more readable per-day summary layout**.
+* Added **automatic month separators** when using `--period` ranges spanning multiple months.
+* Reorganized behavior of `--now`, `--details`, `--events` for consistency with the new architecture.
+
+---
+
+### 🕒 Computation changes
+
+* **Corrected Expected Exit calculation**: now computed as
+  **start time + work duration (from config) + effective lunch minutes**.
+* **Corrected daily surplus calculation**:
+
+  ```
+  Surplus = End − Expected
+  ```
+
+  eliminating legacy double-counting issues.
+* Extended `mins2readable()`:
+
+    * supports short format → `+02:25`
+    * supports long format → `+02h 25m`
+    * integrates with new color-formatting helpers
+
+---
+
+### 🎨 Output & formatting improvements
+
+* **Intelligent color rules**:
+
+    * Positive surplus → green
+    * Negative surplus → red
+    * Missing fields (`--:--`, `-`, `- min`) → dark gray
+* Column alignment refined for professional-grade CLI readability.
+* Introduced centralized ANSI helpers in `formatting.rs`.
+* Added helper `gray()` for visually deemphasized fields.
+
+---
+
+### 🔧 Internal updates & refactoring
+
+* Reworked `print_daily_summary_row` to rely entirely on the Timeline model.
+* Added color helper functions: `gray()`, `green()`, `red()`, `reset()`.
+* Improved handling of incomplete events and unusual edge cases.
+* Removed obsolete legacy paths and duplicated code.
+* Updated `list.rs` to match the new Core and data flow.
+
+---
+
+### 🧹 Fixes
+
+* Fixed incorrect Expected Exit calculations when lunch was missing or incorrect.
+* Fixed lunch display occasionally showing `--:--` even when a value existed.
+* Fixed misalignment in the Total Surplus footer.
+* Fixed inconsistencies between `list` and `list --events` output.
+
+---
+
 ## [0.8.0-alpha2] - 2025-12-04
 
 ### Changed
