@@ -4,8 +4,8 @@ use crate::errors::AppResult;
 use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
-use zip::ZipWriter;
 use zip::write::FileOptions;
+use zip::ZipWriter;
 
 pub struct BackupLogic;
 
@@ -31,6 +31,31 @@ impl BackupLogic {
         // 2️⃣ Ensure destination folder exists
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent)?;
+        }
+
+        // ⛔ 2.5️⃣ If destination file exists → ask confirmation
+        if dest.exists() {
+            println!(
+                "⚠️  The file '{}' already exists.\nDo you want to overwrite it? [y/N]: ",
+                dest.display()
+            );
+
+            use std::io::{stdin, stdout, Write};
+
+            let mut answer = String::new();
+            print!("> ");
+            stdout().flush().ok();
+
+            stdin()
+                .read_line(&mut answer)
+                .expect("Failed to read user input");
+
+            let answer = answer.trim().to_lowercase();
+
+            if !(answer == "y" || answer == "yes") {
+                println!("❌ Backup cancelled by user.");
+                return Ok(()); // ← exit safely
+            }
         }
 
         // 3️⃣ Copy database

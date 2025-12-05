@@ -55,6 +55,16 @@
 
 ---
 
+### 🛡 Backup safety improvements
+
+- The `backup --file` command now **prompts for confirmation** if the destination
+  file already exists.  
+  This prevents accidental overwrites of existing backup files.
+- Default answer is **No**, ensuring safer interactive usage.
+- Lays groundwork for a future `--force` flag to skip confirmation in scripted workflows.
+
+---
+
 ### 🧹 Fixes
 
 * Fixed incorrect Expected Exit calculations when lunch was missing or incorrect.
