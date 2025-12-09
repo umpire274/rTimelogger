@@ -56,6 +56,7 @@ impl BackupLogic {
                 println!("❌ Backup cancelled by user.");
                 return Ok(()); // ← exit safely
             }
+            println!();
         }
 
         // 3️⃣ Copy database
