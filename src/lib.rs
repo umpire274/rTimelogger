@@ -19,7 +19,7 @@ use errors::AppResult;
 pub fn dispatch(cli: &Cli, cfg: &Config) -> AppResult<()> {
     match &cli.command {
         Commands::Init => cli::commands::init::handle(cli),
-        Commands::Config { .. } => cli::commands::config::handle(&cli.command),
+        Commands::Config { .. } => cli::commands::config::handle(&cli.command, cfg),
         Commands::Add { .. } => cli::commands::add::handle(&cli.command, cfg),
         Commands::List { .. } => cli::commands::list::handle(&cli.command, cfg),
         Commands::Del { .. } => cli::commands::del::handle(&cli.command, cfg),
