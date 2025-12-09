@@ -53,6 +53,14 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 - Improved handling of partial and incomplete event pairs.
 - Cleanup of legacy paths and duplicated code.
 
+### 🛡 Backup safety improvements
+
+- The `backup --file <PATH>` command now **prompts for confirmation** when the destination
+  file already exists, preventing unintended overwrites.
+- Default answer is **No**, ensuring safer interactive usage.
+- This change makes manual backups safer without requiring additional flags  
+  (a future `--force` option may be introduced for scripting use cases).
+
 ### 🧹 Fixes
 
 - Fixed Expected Exit not correctly reflecting lunch duration.
@@ -546,11 +554,26 @@ rtimelogger backup --file "/path/to/backup.sqlite" --compress
 - On Windows creates /path/to/backup.zip
 - On Linux/macOS creates /path/to/backup.tar.gz
 
-Notes:
+#### 🔐 Safety enhancement
+
+When the destination backup file already exists, the CLI now:
+
+1. Prompts the user for confirmation before overwriting
+   `Overwrite existing file '/path/to/backup.sqlite'? [y/N]`
+
+2. Defaults to **No**, preventing accidental loss of previous backups.
+3. Aborts safely unless the user explicitly confirms with `y`.
+
+This prompt applies to both:
+
+- the raw backup file (`--file`)
+- and the compressed output (`--compress`)
+
+#### Additional Notes:
 
 - When `--compress` is provided, the CLI now removes the original uncompressed backup file after successful
-  compression (e.g. `my_db.sqlite.bck` -> `my_db.sqlite.zip`); a non-fatal warning is printed if the removal fails. This
-  avoids leaving redundant files in the backup directory.
+  compression (e.g. `my_db.sqlite.bck` -> `my_db.sqlite.zip`).
+  A non-fatal warning is printed if the removal fails. This avoids leaving redundant files in the backup directory.
 
 ---
 
