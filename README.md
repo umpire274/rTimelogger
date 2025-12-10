@@ -16,57 +16,49 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ## ✨ New in v0.8.0-beta1
 
-### 🚀 Major changes (command `list`)
+### 🚀 Command `list` fully rewritten
 
-- The `list` command has been fully rewritten to use the new **timeline-based model**.
-- Rendering no longer depends on the legacy `work_sessions` table; it now uses  
-  `events → timeline → pairs`.
-- Improved readability with a **clean, aligned layout**, color-coded values, and consistent terminology.
-- Added **automatic month separators** when `--period` spans multiple months.
-- Reworked behavior of `--now`, `--details`, and `--events` for consistency.
+- Now based entirely on the **Timeline Model** (`events → timeline → pairs`).
+- Unified and cleaner output for:
+    - `list`
+    - `list --today`
+    - `list --events`
+    - `list --details`
+- Month separators added when `--period` spans multiple calendar months.
+- Improved ANSI color scheme (green/red/gray).
+- Surplus formula corrected: `surplus = end_time – expected_exit`.
 
-### 🕒 Computation improvements
+### ⏱ Improved computation of Expected & Surplus
 
-- **Expected Exit** is now correctly computed as:  
-  `expected = start_time + work_duration + lunch_minutes`.
-- **Daily surplus** is now strictly:  
-  `surplus = end_time – expected`,  
-  avoiding double-counting issues from previous versions.
-- Enhanced `mins2readable()`:
-    - short format: `+02:25`
-    - long format: `+02h 25m`
-    - supports optional ANSI coloring via helper functions.
+- Expected Exit now respects:
+    - configured daily work duration
+    - **lunch_window**
+    - minimum lunch duration when lunch is not explicitly declared
+- Fixed incorrect expected exit when recording only `--in`.
 
-### 🎨 Output & formatting enhancements
+### 🗄 New command `db`
 
-- Intelligent ANSI coloring:
-    - **green** → positive surplus
-    - **red** → negative surplus
-    - **gray** → missing or undefined fields (`--:--`, `-`, `- min`)
-- Consistent column alignment for a professional, stable layout.
-- Centralized color helpers (`gray()`, `green()`, `red()`, `reset()`).
+Added the new administrative command:
 
-### 🔧 Internal refactoring
+- `rtimelogger db --info` → show DB summary
+- `rtimelogger db --check` → integrity check
+- `rtimelogger db --vacuum` → compact the DB
+- `rtimelogger db --migrate` → apply safe migrations
 
-- Complete rewrite of `print_daily_summary_row()` with timeline logic.
-- Unified color utilities in `formatting.rs`.
-- Improved handling of partial and incomplete event pairs.
-- Cleanup of legacy paths and duplicated code.
+### 🗃 Database schema migration overhaul
 
-### 🛡 Backup safety improvements
+- Automatic backup before destructive schema updates.
+- Rebuild of `pair` values via new utility `rebuild_all_pairs`.
+- Automatic removal of obsolete tables (e.g., `work_sessions`) when upgrading from older versions.
 
-- The `backup --file <PATH>` command now **prompts for confirmation** when the destination
-  file already exists, preventing unintended overwrites.
-- Default answer is **No**, ensuring safer interactive usage.
-- This change makes manual backups safer without requiring additional flags  
-  (a future `--force` option may be introduced for scripting use cases).
+### ⚙ Configuration improvements
 
-### 🧹 Fixes
+- New parameter `lunch_window` (format `HH:MM-HH:MM`).
+- On load, missing parameters are automatically added to the config file.
 
-- Fixed Expected Exit not correctly reflecting lunch duration.
-- Fixed lunch display being shown as `--:--` even when present.
-- Fixed formatting bugs in total surplus output.
-- Fixed inconsistencies between `list` and `list --events`.
+### 💾 Backup improvements
+
+- `backup --file` now asks for confirmation if the target file already exists.
 
 ---
 
@@ -482,16 +474,6 @@ rtimelogger list --events --period 2024:2025
 rtimelogger list --events --summary
 rtimelogger list --events --summary --pairs 1
 rtimelogger list --events --summary --json
-```
-
-### Sample output of summary mode
-
-```text
-📊 Event pairs summary:
-Date        Pair  Pos  Start  End    Lunch  Dur
-----------  ----  ---  -----  -----  -----  --------
-2025-12-01  1     O    09:00  12:00     30  2H 30M
-2025-12-01  2     O    13:00  17:00      0  4H 00M
 ```
 
 *Note: JSON output still contains `duration_minutes` expressed as integer minutes.*

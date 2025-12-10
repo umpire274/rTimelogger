@@ -4,8 +4,8 @@ use crate::errors::AppResult;
 use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
-use zip::write::FileOptions;
 use zip::ZipWriter;
+use zip::write::FileOptions;
 
 pub struct BackupLogic;
 
@@ -40,7 +40,7 @@ impl BackupLogic {
                 dest.display()
             );
 
-            use std::io::{stdin, stdout, Write};
+            use std::io::{Write, stdin, stdout};
 
             let mut answer = String::new();
             print!("> ");

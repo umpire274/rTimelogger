@@ -25,7 +25,7 @@ pub fn load_events_by_date(pool: &mut DbPool, date: &NaiveDate) -> AppResult<Vec
     Ok(out)
 }
 
-fn map_row(row: &Row) -> Result<Event> {
+pub fn map_row(row: &Row) -> Result<Event> {
     let date_str: String = row.get("date")?;
     let time_str: String = row.get("time")?;
 

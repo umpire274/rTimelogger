@@ -88,10 +88,10 @@ impl Config {
                 let _ = fs::create_dir_all(parent);
             }
 
-            if let Ok(yaml) = serde_yaml::to_string(&defaults) {
-                if let Err(e) = fs::write(&path, yaml) {
-                    eprintln!("⚠️ Failed to write default config file: {e}");
-                }
+            if let Ok(yaml) = serde_yaml::to_string(&defaults)
+                && let Err(e) = fs::write(&path, yaml)
+            {
+                eprintln!("⚠️ Failed to write default config file: {e}");
             }
 
             return defaults;
@@ -181,16 +181,14 @@ impl Config {
         }
 
         // 5) Se abbiamo modificato qualcosa → riscriviamo il file aggiornato
-        if modified {
-            if let Ok(yaml) = serde_yaml::to_string(&loaded) {
-                if let Some(parent) = path.parent() {
-                    let _ = fs::create_dir_all(parent);
-                }
-                if let Err(e) = fs::write(&path, yaml) {
-                    eprintln!("⚠️ Failed to update config file: {e}");
-                } else {
-                    eprintln!("🔧 Config file updated with missing fields.");
-                }
+        if modified && let Ok(yaml) = serde_yaml::to_string(&loaded) {
+            if let Some(parent) = path.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if let Err(e) = fs::write(&path, yaml) {
+                eprintln!("⚠️ Failed to update config file: {e}");
+            } else {
+                eprintln!("🔧 Config file updated with missing fields.");
             }
         }
 

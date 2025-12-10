@@ -1,7 +1,7 @@
+use super::{event_type::EventType, location::Location};
+use crate::db::pool::DbPool;
 use chrono::{Local, NaiveDate, NaiveTime};
 use serde::Serialize;
-
-use super::{event_type::EventType, location::Location};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Event {
@@ -60,5 +60,47 @@ impl Event {
         let dt = self.date.and_time(self.time);
         // convert naive to Local
         dt.and_local_timezone(Local).unwrap()
+    }
+
+    pub fn get_date_time(&self) -> String {
+        self.date
+            .and_time(self.time)
+            .format("%Y-%m-%d %H:%M")
+            .to_string()
+    }
+
+    pub fn has_events_for_dates(pool: &mut DbPool, dates: &[NaiveDate]) -> rusqlite::Result<bool> {
+        if dates.is_empty() {
+            return Ok(false);
+        }
+
+        // Converti le date in stringhe "YYYY-MM-DD"
+        let date_strings: Vec<String> = dates
+            .iter()
+            .map(|d| d.format("%Y-%m-%d").to_string())
+            .collect();
+
+        // Crea una lista di placeholder: ?, ?, ?, ...
+        let placeholders = vec!["?"; date_strings.len()].join(",");
+
+        // Query con IN (...)
+        let sql = format!(
+            "SELECT 1 FROM events WHERE date IN ({}) LIMIT 1",
+            placeholders
+        );
+
+        // Converti in una lista di &dyn ToSql per rusqlite
+        let params: Vec<&dyn rusqlite::ToSql> = date_strings
+            .iter()
+            .map(|s| s as &dyn rusqlite::ToSql)
+            .collect();
+
+        let exists = {
+            let conn = &mut pool.conn;
+            let mut stmt = conn.prepare(&sql)?;
+            stmt.exists(rusqlite::params_from_iter(params))?
+        };
+
+        Ok(exists)
     }
 }

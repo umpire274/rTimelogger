@@ -1,3 +1,5 @@
+use crate::core::calculator::timeline::Timeline;
+use crate::models::location::Location;
 use chrono::{Datelike, NaiveDate, Weekday};
 
 pub fn today() -> NaiveDate {
@@ -142,5 +144,18 @@ pub fn weekday_str(date_str: &str, type_wd: char) -> String {
         }
     } else {
         String::new() // if the date is invalid, return an empty string
+    }
+}
+
+pub fn get_day_position(timeline: &Timeline) -> Location {
+    let mut iter = timeline.pairs.iter().map(|p| p.position);
+    if let Some(first) = iter.next() {
+        if iter.all(|pos| pos == first) {
+            first
+        } else {
+            Location::Mixed
+        }
+    } else {
+        Location::Mixed
     }
 }

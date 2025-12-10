@@ -1,6 +1,7 @@
 pub mod add;
 pub mod backup;
 pub mod config;
+pub mod db;
 pub mod del;
 pub mod export;
 pub mod init;

@@ -1,3 +1,4 @@
+use crate::db::db_utils;
 use rusqlite::{Connection, OptionalExtension, Result};
 
 /// Ensure that the `log` table exists with the modern schema.
@@ -16,6 +17,14 @@ fn ensure_log_table(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Check if the `work_sessions` table exists.
+fn work_sessions_table_exists(conn: &Connection) -> Result<bool> {
+    let mut stmt =
+        conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_sessions'")?;
+    let exists: Option<String> = stmt.query_row([], |row| row.get(0)).optional()?;
+    Ok(exists.is_some())
+}
+
 /// Check if the `events` table exists.
 fn events_table_exists(conn: &Connection) -> Result<bool> {
     let mut stmt =
@@ -30,12 +39,10 @@ fn events_has_pair_column(conn: &Connection) -> Result<bool> {
     let cols = stmt.query_map([], |row| row.get::<_, String>(1))?;
 
     for c in cols {
-        let name = c?;
-        if name == "pair" {
+        if c? == "pair" {
             return Ok(true);
         }
     }
-
     Ok(false)
 }
 
@@ -63,16 +70,14 @@ fn create_events_table(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-/// Add `pair` column to `events` by rebuilding the table (if the table exists but lacks `pair`).
+/// Migrate an old `events` table to include `pair` column.
 fn migrate_add_pair_to_events(conn: &Connection) -> Result<()> {
-    // Controlla se esiste la tabella `events`
     if !events_table_exists(conn)? {
-        return Ok(());
+        return Ok(()); // nessuna tabella → niente da migrare
     }
 
-    // Se ha già la colonna `pair` non c'è niente da fare
     if events_has_pair_column(conn)? {
-        return Ok(());
+        return Ok(()); // già presente → OK
     }
 
     println!("⚠️  Adding 'pair' column to events table...");
@@ -84,7 +89,7 @@ fn migrate_add_pair_to_events(conn: &Connection) -> Result<()> {
 
         ALTER TABLE events RENAME TO events_old;
 
-        CREATE TABLE IF NOT EXISTS events (
+        CREATE TABLE events (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             date         TEXT NOT NULL,
             time         TEXT NOT NULL,
@@ -106,9 +111,8 @@ fn migrate_add_pair_to_events(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_events_date_time ON events(date, time);
         CREATE INDEX IF NOT EXISTS idx_events_date_kind ON events(date, kind);
 
-        -- Allinea la sequenza AUTOINCREMENT con il max(id)
         UPDATE sqlite_sequence
-          SET seq = (SELECT IFNULL(MAX(id), 0) FROM events)
+            SET seq = (SELECT IFNULL(MAX(id), 0) FROM events)
         WHERE name = 'events';
 
         COMMIT;
@@ -116,123 +120,171 @@ fn migrate_add_pair_to_events(conn: &Connection) -> Result<()> {
         "#,
     )?;
 
-    println!("✅ 'pair' column added to events table.");
-    recalc_all_pairs(conn)?;
-    println!("✅ Populated 'pair' column for existing events.");
+    println!("✅ 'pair' column added.");
 
-    Ok(())
-}
+    println!("👍 Rebuilding pairs using the new timeline logic...");
 
-/// Recalculate `pair` values for all events of a given date.
-fn recalc_pairs_for_date(conn: &Connection, date: &str) -> Result<()> {
-    let mut stmt =
-        conn.prepare("SELECT id, kind, time FROM events WHERE date = ?1 ORDER BY time ASC")?;
+    // Ricaviamo il percorso del DB collegato
+    let db_path: String = conn
+        .query_row("PRAGMA database_list;", [], |row| row.get(2))
+        .unwrap_or_else(|_| "".to_string());
 
-    let events = stmt
-        .query_map([date], |row| {
-            Ok((
-                row.get::<_, i32>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
-        })?
-        .collect::<Result<Vec<_>>>()?;
+    // Se il DB è in memoria o non ha un percorso valido, gestiamo il caso
+    if db_path.is_empty() {
+        println!("⚠️ Could not determine DB path — skipping pair rebuild.");
+        return Ok(());
+    }
 
-    let mut current_pair = 1;
-    let mut last_in: Option<i32> = None;
-
-    for (id, kind, _time) in events {
-        match kind.as_str() {
-            "in" => {
-                last_in = Some(id);
-                conn.execute(
-                    "UPDATE events SET pair = ?1 WHERE id = ?2",
-                    (current_pair, id),
-                )?;
-            }
-            "out" => {
-                conn.execute(
-                    "UPDATE events SET pair = ?1 WHERE id = ?2",
-                    (current_pair, id),
-                )?;
-                if last_in.is_some() {
-                    current_pair += 1;
-                    last_in = None;
-                }
-            }
-            _ => {
-                // Qualsiasi altro valore non previsto → pair = 0
-                conn.execute("UPDATE events SET pair = 0 WHERE id = ?1", (id,))?;
-            }
+    // Creiamo DbPool
+    let mut pool = match crate::db::pool::DbPool::new(&db_path) {
+        Ok(p) => p,
+        Err(e) => {
+            println!("❌ Failed to create DbPool for pair rebuild: {e}");
+            return Ok(());
         }
+    };
+
+    // Ricostruiamo i pair usando l’API moderna
+    match db_utils::rebuild_all_pairs(&mut pool) {
+        Ok(_) => println!("✅ Populated 'pair' column for existing events."),
+        Err(e) => println!("❌ Failed to rebuild pairs: {e}"),
     }
 
     Ok(())
 }
 
-/// Recalculate pairs for all dates present in the `events` table.
-fn recalc_all_pairs(conn: &Connection) -> Result<()> {
-    let mut stmt = conn.prepare("SELECT DISTINCT date FROM events ORDER BY date ASC")?;
-    let dates = stmt
-        .query_map([], |row| row.get::<_, String>(0))?
-        .collect::<Result<Vec<_>>>()?;
+/// Drop obsolete tables as part of the 0.8.0 migration.
+fn align_db_schemas_to_080_version(conn: &Connection) -> Result<()> {
+    let mut stmt =
+        conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_sessions'")?;
+    let exists: Option<String> = stmt.query_row([], |row| row.get(0)).optional()?;
 
-    for d in dates {
-        recalc_pairs_for_date(conn, &d)?;
+    if exists.is_some() {
+        conn.execute_batch("DROP TABLE work_sessions;")?;
+        println!("✅ Dropped obsolete work_sessions table.");
     }
 
     Ok(())
 }
 
-/// Public entry point: run all pending (idempotent) migrations.
+fn backup_before_migration(db_path: &str) -> Result<()> {
+    use chrono::Local;
+    use std::fs::{self, File};
+    use std::io::Write;
+    use zip::CompressionMethod;
+    use zip::ZipWriter;
+    use zip::write::FileOptions;
+
+    // Nome file backup
+    let backup_name = format!(
+        "{}-backup_db_pre_080-beta1.zip",
+        Local::now().format("%Y%m%d_%H%M%S")
+    );
+
+    let backup_path = std::path::Path::new(db_path)
+        .parent()
+        .unwrap()
+        .join(&backup_name);
+
+    // Apertura ZIP
+    let file = File::create(&backup_path).map_err(|e| {
+        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+            e.kind(),
+            format!("Backup failed (create): {}", e),
+        )))
+    })?;
+
+    let mut zip = ZipWriter::new(file);
+
+    // Opzioni ZIP
+    let options: FileOptions<'_, ()> =
+        FileOptions::default().compression_method(CompressionMethod::Deflated);
+
+    zip.start_file("database.sqlite", options).map_err(|e| {
+        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(format!(
+            "Backup failed (start_file): {}",
+            e
+        ))))
+    })?;
+
+    // Leggi contenuto DB
+    let db_content = fs::read(db_path).map_err(|e| {
+        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(format!(
+            "Backup failed (read): {}",
+            e
+        ))))
+    })?;
+
+    zip.write_all(&db_content).map_err(|e| {
+        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(format!(
+            "Backup failed (write_all): {}",
+            e
+        ))))
+    })?;
+
+    zip.finish().map_err(|e| {
+        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(format!(
+            "Backup failed (finish): {}",
+            e
+        ))))
+    })?;
+
+    println!("📦 Backup created: {}", backup_path.display());
+    Ok(())
+}
+
+/// Public entry point: run all pending migrations.
 ///
-/// Chiamata tipicamente da `db::init_db()`.
+/// Invocata da db::init_db().
 pub fn run_pending_migrations(conn: &Connection) -> Result<()> {
-    // 1) Garantiamo sempre la presenza della tabella log
+    // 1) Ensure log table
     ensure_log_table(conn)?;
 
-    // 2) Garantiamo sempre la presenza della tabella work_sessions
-    ensure_work_sessions_table(conn)?;
-
-    // 3) Garantiamo la tabella events con schema moderno
-    if !events_table_exists(conn)? {
-        create_events_table(conn)?;
-        println!("✅ Created events table (modern schema).");
+    // 2) Ensure events table exists (even without pair)
+    let events_exists = events_table_exists(conn)?;
+    let events_has_pair = if events_exists {
+        events_has_pair_column(conn)?
     } else {
-        // Se esiste ma non ha `pair`, migriamo
-        if !events_has_pair_column(conn)? {
-            migrate_add_pair_to_events(conn)?;
+        false
+    };
+
+    // 3) Detect legacy schema (< 0.8.0-beta1)
+    let work_sessions_exists = work_sessions_table_exists(conn)?;
+
+    let is_legacy_schema = work_sessions_exists || !events_has_pair;
+
+    // 4) If legacy → perform PRE-MIGRATION BACKUP
+    if is_legacy_schema {
+        println!("⚠️  Legacy schema detected — creating safety backup before migration...");
+
+        let db_path: String = conn
+            .query_row("PRAGMA database_list;", [], |row| row.get::<_, String>(2))
+            .unwrap_or_default();
+
+        if !db_path.is_empty() {
+            backup_before_migration(&db_path)?;
         } else {
-            // Assicuriamo comunque gli indici
-            conn.execute_batch(
-                r#"
-                CREATE INDEX IF NOT EXISTS idx_events_date_time ON events(date, time);
-                CREATE INDEX IF NOT EXISTS idx_events_date_kind ON events(date, kind);
-                "#,
-            )?;
+            println!("⚠️ Could not determine DB path — backup skipped.");
         }
     }
 
-    Ok(())
-}
+    // 5) Create events table if missing
+    if !events_exists {
+        create_events_table(conn)?;
+        println!("✅ Created events table (modern schema).");
+    } else if !events_has_pair {
+        migrate_add_pair_to_events(conn)?;
+    } else {
+        conn.execute_batch(
+            r#"
+            CREATE INDEX IF NOT EXISTS idx_events_date_time ON events(date, time);
+            CREATE INDEX IF NOT EXISTS idx_events_date_kind ON events(date, kind);
+            "#,
+        )?;
+    }
 
-fn ensure_work_sessions_table(conn: &Connection) -> Result<()> {
-    conn.execute_batch(
-        r#"
-        CREATE TABLE IF NOT EXISTS work_sessions (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            date        TEXT                NOT NULL,
-            position    TEXT    DEFAULT 'O' NOT NULL,
-            start_time  TEXT    DEFAULT ''  NOT NULL,
-            lunch_break INTEGER DEFAULT 0   NOT NULL,
-            end_time    TEXT    DEFAULT ''  NOT NULL,
-            work_duration INTEGER DEFAULT 0  -- minuti netti: (end-start)-lunch
-            CHECK (position IN ('O', 'R', 'H', 'C', 'M'))
-        );
+    // 6) Perform schema cleanup for 0.8.0+
+    align_db_schemas_to_080_version(conn)?;
 
-        CREATE INDEX IF NOT EXISTS idx_work_sessions_date ON work_sessions(date);
-        CREATE INDEX IF NOT EXISTS idx_work_sessions_position ON work_sessions(position);
-        "#,
-    )?;
     Ok(())
 }

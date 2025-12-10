@@ -1,76 +1,100 @@
 # Changelog
 
-## [0.8.0-beta1] – 2025-XX-XX *(provisional)*
+## [0.8.0-beta1] – 2025-12-10
 
-### 🚀 Major changes – `list` command overhaul
+### 🚀 Major changes
 
-* Fully rewritten **`list` output**, now powered exclusively by the new timeline model.
-* Dropped usage of the legacy `work_sessions` table for rendering.
-* The command now operates on → `events` → `timeline` → `pairs`.
-* Introduced a **cleaner, more readable per-day summary layout**.
-* Added **automatic month separators** when using `--period` ranges spanning multiple months.
-* Reorganized behavior of `--now`, `--details`, `--events` for consistency with the new architecture.
+#### ✔ Full rewrite of the `list` command
 
----
+- The command is now fully based on the **timeline model** (`events → timeline → pairs`).
+- The legacy table `work_sessions` is officially removed.
+- Consistent layout for:
+    - `list`
+    - `list --today`
+    - `list --events`
+    - `list --details`
+- Automatic **month separators** when using `--period` spanning multiple months.
+- Intelligent ANSI-color output (green/red/gray) across all modes.
+- Daily surplus formula rewritten as:  
+  **`surplus = end_time – expected_exit`**.
 
-### 🕒 Computation changes
+#### ✔ Correct handling of Expected Exit & Lunch
 
-* **Corrected Expected Exit calculation**: now computed as
-  **start time + work duration (from config) + effective lunch minutes**.
-* **Corrected daily surplus calculation**:
-
-  ```
-  Surplus = End − Expected
-  ```
-
-  eliminating legacy double-counting issues.
-* Extended `mins2readable()`:
-
-    * supports short format → `+02:25`
-    * supports long format → `+02h 25m`
-    * integrates with new color-formatting helpers
+- Implemented **lunch_window–aware expected exit calculation**, fixing incorrect results when lunch was not explicitly
+  declared.
+- When the user records only `--in` (no `--out` yet), expected exit now correctly includes:
+    - required minimum lunch duration
+    - validation against lunch_window
+- Lunch computation is now unified and extracted from the timeline model.
 
 ---
 
-### 🎨 Output & formatting improvements
+### 🗄 Database updates
 
-* **Intelligent color rules**:
+#### ✔ New command `db`
 
-    * Positive surplus → green
-    * Negative surplus → red
-    * Missing fields (`--:--`, `-`, `- min`) → dark gray
-* Column alignment refined for professional-grade CLI readability.
-* Introduced centralized ANSI helpers in `formatting.rs`.
-* Added helper `gray()` for visually deemphasized fields.
+Introduced:
+
+- `rtimelogger db --info` → show DB size, event count, date range, avg events/day
+- `rtimelogger db --check` → PRAGMA integrity_check
+- `rtimelogger db --vacuum` → compact and optimize DB
+- `rtimelogger db --migrate` → run schema migrations safely
+
+#### ✔ Safe migration to new schema ≥ 0.8.0-beta1
+
+- `migrate.rs` rewritten to support progressive migrations.
+- Removal of obsolete tables (`work_sessions`) only when upgrading from pre-0.8.0 versions.
+- Automatic backup **before performing destructive schema changes**.
+- Added and populated missing column `pair` when required.
+
+#### ✔ Recalculation of all event pairs
+
+- New utility: **`db_utils::rebuild_all_pairs()`**  
+  Ensures all IN/OUT events receive a correct, sequential `pair` number.
 
 ---
 
-### 🔧 Internal updates & refactoring
+### 🗂 Configuration system upgrades
 
-* Reworked `print_daily_summary_row` to rely entirely on the Timeline model.
-* Added color helper functions: `gray()`, `green()`, `red()`, `reset()`.
-* Improved handling of incomplete events and unusual edge cases.
-* Removed obsolete legacy paths and duplicated code.
-* Updated `list.rs` to match the new Core and data flow.
+#### ✔ Auto-heal of missing config fields
+
+When loading `rtimelogger.conf`, if any field is missing, the system now:
+
+1. Adds the missing key
+2. Assigns default value
+3. Saves updated config back to disk
+
+#### ✔ Added new setting `lunch_window`
+
+Used to compute expected exit when lunch is not explicitly set by the user.
 
 ---
 
-### 🛡 Backup safety improvements
+### 💾 Backup improvements
 
-- The `backup --file` command now **prompts for confirmation** if the destination
-  file already exists.  
-  This prevents accidental overwrites of existing backup files.
-- Default answer is **No**, ensuring safer interactive usage.
-- Lays groundwork for a future `--force` flag to skip confirmation in scripted workflows.
+- `backup --file <path>` now asks for **confirmation** before overwriting an existing file.
+- Improved clarity of success/error output.
+- Compression logic unchanged, but now more robust.
+
+---
+
+### 🔧 Internal refactoring
+
+- Consolidated ANSI color helpers (`gray`, `red`, `green`, `reset`).
+- Unified naming/formatting in `formatting.rs`.
+- Replaced scattered logic with consistent timeline-derived computations.
+- Strong cleanup of unused or legacy code paths.
+- Better error reporting in many critical code points.
 
 ---
 
 ### 🧹 Fixes
 
-* Fixed incorrect Expected Exit calculations when lunch was missing or incorrect.
-* Fixed lunch display occasionally showing `--:--` even when a value existed.
-* Fixed misalignment in the Total Surplus footer.
-* Fixed inconsistencies between `list` and `list --events` output.
+- Fixed wrong Expected Exit when lunch was defined only in one event of the pair.
+- Fixed day surplus double-counting or off-by-lunch errors.
+- Fixed visual misalignment in several output modes.
+- Fixed pair generation inconsistencies in newly inserted events.
+- Fixed config loading not saving newly introduced parameters.
 
 ---
 
