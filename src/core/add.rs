@@ -10,6 +10,15 @@ use rusqlite::params;
 /// High-level business logic for the `add` command.
 pub struct AddLogic;
 
+fn upsert_event(conn: &rusqlite::Connection, ev: &Event) -> AppResult<()> {
+    if ev.id == 0 {
+        insert_event(conn, ev)?;
+    } else {
+        crate::db::queries::update_event(conn, ev)?;
+    }
+    Ok(())
+}
+
 impl AddLogic {
     #[allow(clippy::too_many_arguments)]
     pub fn apply(
@@ -90,21 +99,12 @@ impl AddLogic {
 
             // Save changes
             if let Some(ref e) = ev_in {
-                if e.id == 0 {
-                    insert_event(&pool.conn, e)?;
-                } else {
-                    crate::db::queries::update_event(&pool.conn, e)?;
-                }
+                upsert_event(&pool.conn, e)?;
             }
 
             if let Some(ref e) = ev_out {
-                if e.id == 0 {
-                    insert_event(&pool.conn, e)?;
-                } else {
-                    crate::db::queries::update_event(&pool.conn, e)?;
-                }
+                upsert_event(&pool.conn, e)?;
             }
-
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
             println!("Updated pair {}", pair_num);

@@ -213,7 +213,7 @@ pub fn update_event(conn: &Connection, ev: &Event) -> AppResult<()> {
 pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResult<()> {
     let date_str = date.format("%Y-%m-%d").to_string();
 
-    // 1) carica eventi in ordine di ora
+    // 1) Load events ordered by time
     let mut stmt = conn.prepare(
         "SELECT * FROM events
          WHERE date = ?1
@@ -226,28 +226,61 @@ pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResu
         events.push(r?);
     }
 
-    // 2) ricalcolo pair
+    if events.is_empty() {
+        return Ok(()); // nothing to do
+    }
+
+    // 2) Recalculate pairs with **strict validation**
     let mut current_pair = 1;
-    let mut last_in: Option<i32> = None;
+    let mut open_in: Option<i32> = None; // stores ID of last IN without OUT
 
     for ev in &events {
         if ev.kind.is_in() {
-            last_in = Some(ev.id);
-            conn.execute(
-                "UPDATE events SET pair = ?1 WHERE id = ?2",
-                params![current_pair, ev.id],
-            )?;
-        } else if ev.kind.is_out() {
-            conn.execute(
-                "UPDATE events SET pair = ?1 WHERE id = ?2",
-                params![current_pair, ev.id],
-            )?;
-            if last_in.is_some() {
-                current_pair += 1;
-                last_in = None;
+            //
+            // CASE: IN event
+            //
+            if open_in.is_some() {
+                // Found IN while previous IN has no OUT → INVALID
+                return Err(AppError::InvalidTime(format!(
+                    "Invalid sequence on {}: Found IN at {} but previous pair {} has no OUT.",
+                    date_str, ev.time, current_pair
+                )));
             }
+
+            // Assign IN to the current pair
+            conn.execute(
+                "UPDATE events SET pair = ?1 WHERE id = ?2",
+                params![current_pair, ev.id],
+            )?;
+
+            open_in = Some(ev.id);
+        } else if ev.kind.is_out() {
+            //
+            // CASE: OUT event
+            //
+            if open_in.is_none() {
+                // Found OUT without IN → INVALID
+                return Err(AppError::InvalidTime(format!(
+                    "Invalid sequence on {}: Found OUT at {} without matching IN.",
+                    date_str, ev.time
+                )));
+            }
+
+            // Assign OUT to the same pair
+            conn.execute(
+                "UPDATE events SET pair = ?1 WHERE id = ?2",
+                params![current_pair, ev.id],
+            )?;
+
+            // Close the pair and increment
+            open_in = None;
+            current_pair += 1;
         }
     }
+
+    // If after processing all events an IN is left open → it's allowed
+    // because user may not have entered OUT yet (ongoing workday)
+    // BUT the next IN will be rejected until OUT is inserted.
 
     Ok(())
 }
