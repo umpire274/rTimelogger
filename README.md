@@ -14,6 +14,54 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
+## ✨ New in v0.8.0-beta1
+
+### 🚀 Command `list` fully rewritten
+
+- Now based entirely on the **Timeline Model** (`events → timeline → pairs`).
+- Unified and cleaner output for:
+    - `list`
+    - `list --today`
+    - `list --events`
+    - `list --details`
+- Month separators added when `--period` spans multiple calendar months.
+- Improved ANSI color scheme (green/red/gray).
+- Surplus formula corrected: `surplus = end_time – expected_exit`.
+
+### ⏱ Improved computation of Expected & Surplus
+
+- Expected Exit now respects:
+    - configured daily work duration
+    - **lunch_window**
+    - minimum lunch duration when lunch is not explicitly declared
+- Fixed incorrect expected exit when recording only `--in`.
+
+### 🗄 New command `db`
+
+Added the new administrative command:
+
+- `rtimelogger db --info` → show DB summary
+- `rtimelogger db --check` → integrity check
+- `rtimelogger db --vacuum` → compact the DB
+- `rtimelogger db --migrate` → apply safe migrations
+
+### 🗃 Database schema migration overhaul
+
+- Automatic backup before destructive schema updates.
+- Rebuild of `pair` values via new utility `rebuild_all_pairs`.
+- Automatic removal of obsolete tables (e.g., `work_sessions`) when upgrading from older versions.
+
+### ⚙ Configuration improvements
+
+- New parameter `lunch_window` (format `HH:MM-HH:MM`).
+- On load, missing parameters are automatically added to the config file.
+
+### 💾 Backup improvements
+
+- `backup --file` now asks for confirmation if the target file already exists.
+
+---
+
 ### ✨ New in 0.8.0-alpha2
 
 **✔ Fully redesigned `add` command**
@@ -428,16 +476,6 @@ rtimelogger list --events --summary --pairs 1
 rtimelogger list --events --summary --json
 ```
 
-### Sample output of summary mode
-
-```text
-📊 Event pairs summary:
-Date        Pair  Pos  Start  End    Lunch  Dur
-----------  ----  ---  -----  -----  -----  --------
-2025-12-01  1     O    09:00  12:00     30  2H 30M
-2025-12-01  2     O    13:00  17:00      0  4H 00M
-```
-
 *Note: JSON output still contains `duration_minutes` expressed as integer minutes.*
 
 ### Delete a session by date
@@ -498,11 +536,26 @@ rtimelogger backup --file "/path/to/backup.sqlite" --compress
 - On Windows creates /path/to/backup.zip
 - On Linux/macOS creates /path/to/backup.tar.gz
 
-Notes:
+#### 🔐 Safety enhancement
+
+When the destination backup file already exists, the CLI now:
+
+1. Prompts the user for confirmation before overwriting
+   `Overwrite existing file '/path/to/backup.sqlite'? [y/N]`
+
+2. Defaults to **No**, preventing accidental loss of previous backups.
+3. Aborts safely unless the user explicitly confirms with `y`.
+
+This prompt applies to both:
+
+- the raw backup file (`--file`)
+- and the compressed output (`--compress`)
+
+#### Additional Notes:
 
 - When `--compress` is provided, the CLI now removes the original uncompressed backup file after successful
-  compression (e.g. `my_db.sqlite.bck` -> `my_db.sqlite.zip`); a non-fatal warning is printed if the removal fails. This
-  avoids leaving redundant files in the backup directory.
+  compression (e.g. `my_db.sqlite.bck` -> `my_db.sqlite.zip`).
+  A non-fatal warning is printed if the removal fails. This avoids leaving redundant files in the backup directory.
 
 ---
 

@@ -5,7 +5,7 @@ use crate::cli::parser::Commands;
 use std::process::Command;
 
 /// Handle the `config` subcommand
-pub fn handle(cmd: &Commands) -> AppResult<()> {
+pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
     if let Commands::Config {
         print_config,
         edit_config,
@@ -17,7 +17,6 @@ pub fn handle(cmd: &Commands) -> AppResult<()> {
 
         // ---- PRINT CONFIG ----
         if *print_config {
-            let cfg = Config::load();
             println!("📄 Current configuration:\n");
             println!("{}", serde_yaml::to_string(&cfg).unwrap());
         }

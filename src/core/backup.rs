@@ -33,6 +33,32 @@ impl BackupLogic {
             fs::create_dir_all(parent)?;
         }
 
+        // ⛔ 2.5️⃣ If destination file exists → ask confirmation
+        if dest.exists() {
+            println!(
+                "⚠️  The file '{}' already exists.\nDo you want to overwrite it? [y/N]: ",
+                dest.display()
+            );
+
+            use std::io::{Write, stdin, stdout};
+
+            let mut answer = String::new();
+            print!("> ");
+            stdout().flush().ok();
+
+            stdin()
+                .read_line(&mut answer)
+                .expect("Failed to read user input");
+
+            let answer = answer.trim().to_lowercase();
+
+            if !(answer == "y" || answer == "yes") {
+                println!("❌ Backup cancelled by user.");
+                return Ok(()); // ← exit safely
+            }
+            println!();
+        }
+
         // 3️⃣ Copy database
         fs::copy(src, dest)?;
         println!("✅ Backup created: {}", dest.display());

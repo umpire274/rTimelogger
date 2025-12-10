@@ -1,30 +1,33 @@
+use crate::config::Config;
 use crate::core::calculator::timeline::Timeline;
+use crate::core::logic::Core;
+use crate::utils::time::parse_lunch_window;
 
-pub fn calculate_expected(timeline: &Timeline) -> i64 {
+/// Expected = work_minutes + effective_lunch (automatic or explicit)
+pub fn calculate_expected(timeline: &Timeline, cfg: &Config) -> i64 {
     if timeline.pairs.is_empty() {
         return 0;
     }
 
-    let first_in = &timeline.pairs[0].in_event.timestamp();
-    let last_out = timeline
-        .pairs
-        .iter()
-        .filter_map(|p| p.out_event.as_ref())
-        .next_back()
-        .map(|ev| ev.timestamp());
+    // Total minutes the user *must work*
+    let work_minutes = Core::parse_work_duration_to_minutes(&cfg.min_work_duration);
 
-    if let Some(end) = last_out {
-        let total = (end - *first_in).num_minutes();
+    // Take lunch from the first IN of the day
+    let first_pair = &timeline.pairs[0];
+    let mut lunch = first_pair.lunch_minutes;
 
-        // Lunch: sum of all lunches
-        let lunch_total: i64 = timeline
-            .pairs
-            .iter()
-            .map(|p| p.in_event.lunch.unwrap_or(0) as i64)
-            .sum();
+    // ---- Auto-lunch logic using lunch_window ----
+    // If no lunch was specified, infer it from lunch_window based on the IN time.
+    if lunch == 0
+        && let Some((_win_start, win_end)) = parse_lunch_window(&cfg.lunch_window)
+    {
+        let start_time = first_pair.in_event.timestamp().time();
 
-        total - lunch_total
-    } else {
-        0
+        // If IN time is before the lunch window ends → apply min lunch
+        if start_time <= win_end {
+            lunch = cfg.min_duration_lunch_break as i64;
+        }
     }
+
+    work_minutes + lunch
 }

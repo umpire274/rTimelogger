@@ -16,10 +16,27 @@ pub fn pad_left(s: &str, width: usize) -> String {
     format!("{:>width$}", s, width = width)
 }
 
-pub fn mins2readable(mins: i64) -> String {
-    let sign = if mins < 0 { "-" } else { "" };
-    let m = mins.abs();
-    format!("{}{:02}:{:02}", sign, m / 60, m % 60)
+pub fn mins2readable(mins: i64, want_sign: bool, short: bool) -> String {
+    let abs_m = mins.abs();
+    let hours = abs_m / 60;
+    let minutes = abs_m % 60;
+
+    // NEW: aggiunta del segno "+" per i valori positivi
+    let sign = if mins > 0 && want_sign {
+        "+"
+    } else if mins < 0 && want_sign {
+        "-"
+    } else {
+        "" // zero → nessun segno
+    };
+
+    if short {
+        // es: +02:25 oppure -01:10
+        format!("{}{:02}:{:02}", sign, hours, minutes)
+    } else {
+        // es: +02h 25m oppure -01h 10m
+        format!("{}{:02}h {:02}m", sign, hours, minutes)
+    }
 }
 
 /// Restituisce una descrizione testuale e un colore ANSI per la posizione.

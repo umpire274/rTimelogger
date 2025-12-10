@@ -1,5 +1,103 @@
 # Changelog
 
+## [0.8.0-beta1] – 2025-12-10
+
+### 🚀 Major changes
+
+#### ✔ Full rewrite of the `list` command
+
+- The command is now fully based on the **timeline model** (`events → timeline → pairs`).
+- The legacy table `work_sessions` is officially removed.
+- Consistent layout for:
+    - `list`
+    - `list --today`
+    - `list --events`
+    - `list --details`
+- Automatic **month separators** when using `--period` spanning multiple months.
+- Intelligent ANSI-color output (green/red/gray) across all modes.
+- Daily surplus formula rewritten as:  
+  **`surplus = end_time – expected_exit`**.
+
+#### ✔ Correct handling of Expected Exit & Lunch
+
+- Implemented **lunch_window–aware expected exit calculation**, fixing incorrect results when lunch was not explicitly
+  declared.
+- When the user records only `--in` (no `--out` yet), expected exit now correctly includes:
+    - required minimum lunch duration
+    - validation against lunch_window
+- Lunch computation is now unified and extracted from the timeline model.
+
+---
+
+### 🗄 Database updates
+
+#### ✔ New command `db`
+
+Introduced:
+
+- `rtimelogger db --info` → show DB size, event count, date range, avg events/day
+- `rtimelogger db --check` → PRAGMA integrity_check
+- `rtimelogger db --vacuum` → compact and optimize DB
+- `rtimelogger db --migrate` → run schema migrations safely
+
+#### ✔ Safe migration to new schema ≥ 0.8.0-beta1
+
+- `migrate.rs` rewritten to support progressive migrations.
+- Removal of obsolete tables (`work_sessions`) only when upgrading from pre-0.8.0 versions.
+- Automatic backup **before performing destructive schema changes**.
+- Added and populated missing column `pair` when required.
+
+#### ✔ Recalculation of all event pairs
+
+- New utility: **`db_utils::rebuild_all_pairs()`**  
+  Ensures all IN/OUT events receive a correct, sequential `pair` number.
+
+---
+
+### 🗂 Configuration system upgrades
+
+#### ✔ Auto-heal of missing config fields
+
+When loading `rtimelogger.conf`, if any field is missing, the system now:
+
+1. Adds the missing key
+2. Assigns default value
+3. Saves updated config back to disk
+
+#### ✔ Added new setting `lunch_window`
+
+Used to compute expected exit when lunch is not explicitly set by the user.
+
+---
+
+### 💾 Backup improvements
+
+- `backup --file <path>` now asks for **confirmation** before overwriting an existing file.
+- Improved clarity of success/error output.
+- Compression logic unchanged, but now more robust.
+
+---
+
+### 🔧 Internal refactoring
+
+- Consolidated ANSI color helpers (`gray`, `red`, `green`, `reset`).
+- Unified naming/formatting in `formatting.rs`.
+- Replaced scattered logic with consistent timeline-derived computations.
+- Strong cleanup of unused or legacy code paths.
+- Better error reporting in many critical code points.
+
+---
+
+### 🧹 Fixes
+
+- Fixed wrong Expected Exit when lunch was defined only in one event of the pair.
+- Fixed day surplus double-counting or off-by-lunch errors.
+- Fixed visual misalignment in several output modes.
+- Fixed pair generation inconsistencies in newly inserted events.
+- Fixed config loading not saving newly introduced parameters.
+
+---
+
 ## [0.8.0-alpha2] - 2025-12-04
 
 ### Changed

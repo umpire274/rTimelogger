@@ -45,6 +45,21 @@ pub enum Commands {
         editor: Option<String>,
     },
 
+    /// Manage the database (migrations, integrity checks, etc.)
+    Db {
+        #[arg(long = "migrate", help = "Run pending database migrations")]
+        migrate: bool,
+
+        #[arg(long = "check", help = "Check database integrity")]
+        check: bool,
+
+        #[arg(long = "vacuum", help = "Optimize the database using VACUUM")]
+        vacuum: bool,
+
+        #[arg(long = "info", help = "Show database information")]
+        info: bool,
+    },
+
     /// Print or manage the internal log table
     Log {
         #[arg(long = "print", help = "Print rows from the internal log table")]

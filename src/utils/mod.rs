@@ -1,3 +1,4 @@
+pub mod colors;
 pub mod date;
 pub mod formatting;
 pub mod path;

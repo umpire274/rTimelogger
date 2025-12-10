@@ -57,16 +57,25 @@ pub fn build_timeline(events: &[Event]) -> Timeline {
                 let in_ev = ev.clone();
                 let out_ev = sorted[i + 1].clone();
 
-                let duration = (out_ev.timestamp() - in_ev.timestamp()).num_minutes()
-                    - in_ev.lunch.unwrap_or(0) as i64;
+                // --- LUNCH CALCULATION ---
+                let lunch_minutes = match (in_ev.lunch, out_ev.lunch) {
+                    (Some(l1), Some(l2)) => l1.max(l2) as i64,
+                    (Some(l1), None) => l1 as i64,
+                    (None, Some(l2)) => l2 as i64,
+                    _ => 0,
+                };
 
-                total += duration;
+                // --- WORKED TIME ---
+                let raw_minutes = (out_ev.timestamp() - in_ev.timestamp()).num_minutes();
+                let worked_minutes = raw_minutes - lunch_minutes;
+
+                total += worked_minutes;
 
                 pairs.push(Pair {
                     in_event: in_ev.clone(),
                     out_event: Some(out_ev.clone()),
-                    duration_minutes: duration,
-                    lunch_minutes: in_ev.lunch.unwrap_or(0) as i64,
+                    duration_minutes: worked_minutes,
+                    lunch_minutes,
                     position: in_ev.location,
                 });
 
@@ -75,12 +84,14 @@ pub fn build_timeline(events: &[Event]) -> Timeline {
             }
 
             // Case: IN without OUT → open pair
+            let in_ev = ev.clone();
+
             pairs.push(Pair {
-                in_event: ev.clone(),
+                in_event: in_ev.clone(),
                 out_event: None,
                 duration_minutes: 0,
-                lunch_minutes: ev.lunch.unwrap_or(0) as i64,
-                position: ev.location,
+                lunch_minutes: in_ev.lunch.unwrap_or(0) as i64,
+                position: in_ev.location,
             });
         }
 
