@@ -37,6 +37,9 @@ pub enum AppError {
     #[error("Invalid event type: {0}")]
     InvalidEventType(String),
 
+    #[error("Invalid operation mode: {0}")]
+    InvalidOperation(String),
+
     // ---------------------------
     // Logic errors
     // ---------------------------

@@ -1,5 +1,93 @@
 # Changelog
 
+## [0.8.0-beta2] - 2025-12-12
+
+### ✨ Added
+
+- **Nuovo sistema PDF multipagina** con gestione automatica:
+    - intestazione titolo per pagina
+    - numeri di pagina
+    - tabelle multilinea con header ripetuti
+    - zebra striping
+    - calcolo intelligente della larghezza colonne
+
+- **Titolo PDF dinamico** basato su `--range`, con supporto a:
+    - anno (`YYYY`)
+    - mese (`YYYY-MM`)
+    - giorno (`YYYY-MM-DD`)
+    - intervallo (`YYYY:YYYY`, `YYYY-MM:YYYY-MM`, ecc.)
+
+- **Supporto ufficiale al nuovo enum** `ExportFormat` (CSV, JSON, XLSX, PDF) con validazione in Clap.
+- **Gestione uniforme dell’overwrite dei file** con richiesta di conferma.
+- **Helper condivisi** in `export/utils.rs`:
+    - `build_pdf_title`
+    - `path_str`
+    - `to_io_app_error`
+
+### 🔧 Changed
+
+- **Riscrittura completa del sistema di messaggistica a video (UI)**:
+    - Tutti i messaggi CLI passano ora da `ui/messages.rs`
+    - Stile uniforme per info, successi, warning ed errori
+    - Emoji standardizzate:
+        - ℹ️ info
+        - ⚠️ warning
+        - ❌ error
+        - ✅ success
+    - Prompt di conferma file riscritti usando la nuova UI
+- **Refactor completo del modulo Export**
+    - Suddivisione in:
+        - `logic.rs`
+        - `csv_export.rs`
+        - `json_export.rs`
+        - `xlsx_export.rs`
+        - `pdf_export.rs`
+        - `utils.rs`
+    - Rimossi duplicati, ridotto il codice di oltre il 40%
+    - Migliorata la leggibilità e l’estendibilità del codice
+- **XLSX export migliorato**
+    - gestione numeri, date e orari
+    - riduzione della duplicazione di codice
+    - stile coerente con il PDF
+- **Migrazioni Config riviste**
+    - messaggi più chiari
+    - log più leggibili
+    - gestione errori unificata
+
+### 🐛 Fixed
+
+- Risolto crash PDF: “duplicate indirect reference id” grazie alla nuova gestione interna degli ID.
+- Fix larghezza colonne in XLSX (ora corretto anche in caso di testi lunghi).
+- Fix del sistema export che utilizzava ancora versioni duplicate di events_to_table.
+- Fix comportamento --force in alcuni percorsi non assoluti.
+
+### 🧹 Removed
+
+- Codice legacy del vecchio export (ora sostituito da export/).
+- Vecchio PdfManager monolitico (ora multipagina e completamente rifattorizzato).
+
+### 🖥️ Unified console message system (dettaglio tecnico)
+
+> (Questa sezione compare **solo nel CHANGELOG**, non nel **README**)
+
+La release introduce **un nuovo sistema di messaggistica centralizzato**, ora usato da tutti i comandi dell'app:
+
+- Output coerente e stilisticamente uniforme
+- Distinzione immediata delle tipologie di messaggi
+- Addio ai `println!` sparsi
+- Integrazione diretta nei flussi `init`, `export`, `config`, `db`, `migrate`, ecc.
+
+Esempi:
+
+```text
+ℹ️ Exporting to PDF: report.pdf
+⚠️ The file already exists. Overwrite? [y/N]:
+❌ Error: invalid date format
+✅ Export completed: report.pdf
+```
+
+---
+
 ## [0.8.0-beta1] – 2025-12-10
 
 ### 🚀 Major changes
