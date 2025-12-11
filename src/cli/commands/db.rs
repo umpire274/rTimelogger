@@ -4,20 +4,20 @@ use crate::db::migrate::run_pending_migrations;
 use crate::db::pool::DbPool;
 use crate::db::stats;
 use crate::errors::AppResult;
-use crate::utils::colors::{CYAN, GREEN, RED, RESET};
+use crate::ui::messages::{error, info, success};
 
 pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
     if let Commands::Db {
         migrate,
         check,
         vacuum,
-        info,
+        info: show_info,
     } = cmd
     {
         // Unica istanza condivisa
         let mut pool: Option<DbPool> = None;
 
-        // Helper per ottenere il DbPool (NON closure!)
+        // Helper per ottenere il DbPool
         fn get_pool<'a>(pool: &'a mut Option<DbPool>, db_path: &str) -> AppResult<&'a mut DbPool> {
             if pool.is_none() {
                 *pool = Some(DbPool::new(db_path)?);
@@ -25,53 +25,56 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
             Ok(pool.as_mut().unwrap())
         }
 
-        //
-        // 1) MIGRATE
-        //
+        // ------------------------------------------------------------
+        // 1) MIGRATION
+        // ------------------------------------------------------------
         if *migrate {
             let pool = get_pool(&mut pool, &cfg.database)?;
-            println!("{}▶ Running migrations…{}", CYAN, RESET);
+
+            info("Running database migrations…");
+
             run_pending_migrations(&pool.conn)?;
-            println!("{}✔ Migration completed.{}\n", GREEN, RESET);
+
+            success("Database migration completed successfully.\n");
         }
 
-        //
-        // 2) INFO
-        //
-        if *info {
+        // ------------------------------------------------------------
+        // 2) SHOW INFO
+        // ------------------------------------------------------------
+        if *show_info {
             let pool = get_pool(&mut pool, &cfg.database)?;
+            info("Database information:");
             stats::print_db_info(pool, &cfg.database)?;
         }
 
-        //
-        // 3) CHECK
-        //
+        // ------------------------------------------------------------
+        // 3) INTEGRITY CHECK
+        // ------------------------------------------------------------
         if *check {
             let pool = get_pool(&mut pool, &cfg.database)?;
 
-            println!("{}▶ Running integrity check…{}", CYAN, RESET);
+            info("Running database integrity check…");
 
             let integrity: String = pool
                 .conn
                 .query_row("PRAGMA integrity_check;", [], |row| row.get(0))?;
 
             if integrity == "ok" {
-                println!("{}✔ Integrity check passed.{}\n", GREEN, RESET);
+                success("Integrity check passed.\n");
             } else {
-                println!("{}✘ Integrity check failed:{} {}\n", RED, RESET, integrity);
+                error(format!("Integrity check failed:\n{}", integrity));
             }
         }
 
-        //
+        // ------------------------------------------------------------
         // 4) VACUUM
-        //
+        // ------------------------------------------------------------
         if *vacuum {
             let pool = get_pool(&mut pool, &cfg.database)?;
-            println!("{}▶ Running VACUUM…{}", CYAN, RESET);
 
+            info("Running VACUUM…");
             pool.conn.execute_batch("VACUUM;")?;
-
-            println!("{}✔ Vacuum completed.{}\n", GREEN, RESET);
+            success("VACUUM completed successfully.\n");
         }
     }
 

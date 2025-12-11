@@ -1,6 +1,7 @@
 use crate::db::pool::DbPool;
 use crate::db::queries::{delete_event, load_events_by_date};
 use crate::errors::{AppError, AppResult};
+use crate::ui::messages::info;
 use chrono::NaiveDate;
 
 pub struct DeleteLogic;
@@ -27,7 +28,7 @@ impl DeleteLogic {
                 delete_event(pool, ev.id)?;
             }
 
-            println!("Deleted pair {} for {}", p, date);
+            info(format!("Deleted pair {} for {}", p, date));
             return Ok(());
         }
 
@@ -36,7 +37,7 @@ impl DeleteLogic {
             delete_event(pool, ev.id)?;
         }
 
-        println!("Deleted all events for {}", date);
+        info(format!("Deleted all events for {}", date));
         Ok(())
     }
 }

@@ -5,7 +5,7 @@ use rusqlite::OptionalExtension;
 use std::fs;
 
 pub fn print_db_info(pool: &mut DbPool, db_path: &str) -> rusqlite::Result<()> {
-    println!("📊 {}Database information{}\n", CYAN, RESET);
+    println!();
 
     //
     // 1) FILE SIZE
