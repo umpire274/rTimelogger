@@ -6,6 +6,7 @@ use crate::db::queries::load_events_by_date;
 use crate::errors::{AppError, AppResult};
 use crate::models::day_summary::DaySummary;
 use crate::models::event::Event;
+use crate::ui::messages::{info, warning};
 use crate::utils::date::get_day_position;
 use crate::utils::{colors, date, formatting, mins2readable};
 use chrono::{Datelike, NaiveDate};
@@ -29,7 +30,7 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
         };
 
         if dates.is_empty() {
-            println!("⚠️  No recorded sessions found");
+            warning("⚠️  No recorded sessions found");
             return Ok(());
         }
 
@@ -85,7 +86,7 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
             let day_summary = Core::build_daily_summary(&events, cfg);
 
             if day_summary.timeline.pairs.is_empty() {
-                println!("No valid pairs for {}.", parsed_date);
+                info(format!("No valid pairs for {}.", parsed_date));
                 continue;
             }
 
@@ -157,34 +158,41 @@ fn print_header(period: &Option<String>) {
         if p == "this_month" {
             let today = date::today();
             let month_name = date::month_name(&format!("{:02}", today.month()));
-            println!("📅 Saved sessions for {} {}\n", month_name, today.year());
+            info(format!(
+                "📅 Saved sessions for {} {}\n",
+                month_name,
+                today.year()
+            ));
             return;
         }
         match p.len() {
             4 => {
                 // header for year
-                println!("📅 Saved sessions for year {}\n", p);
+                info(format!("📅 Saved sessions for year {}\n", p));
             }
             7 => {
                 // header for month
                 let parts: Vec<&str> = p.split('-').collect();
                 if parts.len() == 2 {
-                    println!(
+                    info(format!(
                         "📅 Saved sessions for {} {}\n",
                         date::month_name(parts[1]),
                         parts[0]
-                    );
+                    ));
                 }
             }
             10 => {
                 // header for single date
-                println!("📅 Saved session for date {}\n", p);
+                info(format!("📅 Saved session for date {}\n", p));
             }
             15 => {
                 // header for period between two dates
                 let parts: Vec<&str> = p.split(':').collect();
                 if parts.len() == 2 {
-                    println!("📅 Saved sessions from {} to {}\n", parts[0], parts[1]);
+                    info(format!(
+                        "📅 Saved sessions from {} to {}\n",
+                        parts[0], parts[1]
+                    ));
                 }
             }
             _ => {}

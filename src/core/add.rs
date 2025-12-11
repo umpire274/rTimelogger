@@ -4,11 +4,21 @@ use crate::errors::{AppError, AppResult};
 use crate::models::event::Event;
 use crate::models::event_type::EventType;
 use crate::models::location::Location;
+use crate::ui::messages::success;
 use chrono::{NaiveDate, NaiveTime};
 use rusqlite::params;
 
 /// High-level business logic for the `add` command.
 pub struct AddLogic;
+
+fn upsert_event(conn: &rusqlite::Connection, ev: &Event) -> AppResult<()> {
+    if ev.id == 0 {
+        insert_event(conn, ev)?;
+    } else {
+        crate::db::queries::update_event(conn, ev)?;
+    }
+    Ok(())
+}
 
 impl AddLogic {
     #[allow(clippy::too_many_arguments)]
@@ -21,26 +31,35 @@ impl AddLogic {
         end: Option<NaiveTime>,
         edit_mode: bool,
         edit_pair: Option<usize>,
-        _pos: Option<String>, // used only for audit logging (optional)
+        pos: Option<String>,
     ) -> AppResult<()> {
+        // Validate and resolve final position code
+        let pos_final = match pos {
+            Some(code) => Location::from_code(&code).ok_or_else(|| {
+                AppError::InvalidPosition(format!(
+                    "Invalid location code '{}'. Use a valid code such as 'office', 'remote', 'customer', ...",
+                    code
+                ))
+            })?,
+            None => position,
+        };
+
         // ------------------------------------------------
         // 1️⃣ EDIT MODE
         // ------------------------------------------------
         if edit_mode {
             let pair_num = edit_pair
-                .ok_or_else(|| AppError::InvalidTime("Missing --pair when using --edit".into()))?;
+                .ok_or_else(|| AppError::InvalidTime("Missing --pair when using --edit.".into()))?;
 
             // Load IN/OUT pair
             let (mut ev_in, mut ev_out) = load_pair_by_index(&pool.conn, &date, pair_num)?;
 
-            // Apply ONLY explicitly passed values
-
             // POSITION
             if let Some(ref mut e) = ev_in {
-                e.location = position;
+                e.location = pos_final;
             }
             if let Some(ref mut e) = ev_out {
-                e.location = position;
+                e.location = pos_final;
             }
 
             // IN
@@ -48,13 +67,13 @@ impl AddLogic {
                 if let Some(ref mut e) = ev_in {
                     e.time = start_time;
                 } else {
-                    // There was no IN → create new one
+                    // Create missing IN
                     ev_in = Some(Event::new(
                         0,
                         date,
                         start_time,
                         EventType::In,
-                        position,
+                        pos_final,
                         lunch,
                         false,
                     ));
@@ -66,13 +85,13 @@ impl AddLogic {
                 if let Some(ref mut e) = ev_out {
                     e.time = end_time;
                 } else {
-                    // No OUT → create
+                    // Create missing OUT
                     ev_out = Some(Event::new(
                         0,
                         date,
                         end_time,
                         EventType::Out,
-                        position,
+                        pos_final,
                         Some(0),
                         false,
                     ));
@@ -90,24 +109,15 @@ impl AddLogic {
 
             // Save changes
             if let Some(ref e) = ev_in {
-                if e.id == 0 {
-                    insert_event(&pool.conn, e)?;
-                } else {
-                    crate::db::queries::update_event(&pool.conn, e)?;
-                }
+                upsert_event(&pool.conn, e)?;
             }
-
             if let Some(ref e) = ev_out {
-                if e.id == 0 {
-                    insert_event(&pool.conn, e)?;
-                } else {
-                    crate::db::queries::update_event(&pool.conn, e)?;
-                }
+                upsert_event(&pool.conn, e)?;
             }
 
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
-            println!("Updated pair {}", pair_num);
+            success(format!("Pair {} updated successfully.", pair_num));
             return Ok(());
         }
 
@@ -122,7 +132,7 @@ impl AddLogic {
         let events_today = load_events_by_date(pool, &date)?;
         let has_events = !events_today.is_empty();
 
-        // CASE A: Only lunch
+        // CASE A: Only lunch update
         if start.is_none() && end.is_none() && lunch.is_some() {
             if !has_events {
                 return Err(AppError::InvalidTime(
@@ -151,17 +161,17 @@ impl AddLogic {
                 ));
             }
 
-            println!(
-                "Lunch updated to {} minutes for the last event of {}",
+            success(format!(
+                "Lunch updated to {} minutes for the last event of {}.",
                 lunch_val, date_str
-            );
+            ));
             return Ok(());
         }
 
-        // CASE B: No meaningful input
+        // CASE B: no meaningful input
         if start.is_none() && end.is_none() {
             return Err(AppError::InvalidTime(
-                "Nothing to do: specify at least --in, --out or --lunch.".into(),
+                "Nothing to do: you must specify at least --in, --out or --lunch.".into(),
             ));
         }
 
@@ -174,7 +184,7 @@ impl AddLogic {
                 date,
                 start_time,
                 EventType::In,
-                position,
+                pos_final,
                 Some(lunch_val),
                 false,
             );
@@ -182,17 +192,17 @@ impl AddLogic {
             insert_event(&pool.conn, &ev_in)?;
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
-            println!(
-                "Added IN: {} {} @ {} (lunch {} min)",
-                date_str,
-                position.code(),
+            success(format!(
+                "Added IN at {} on {} (location {}, lunch {} min).",
                 start_time,
+                date_str,
+                pos_final.code(),
                 lunch_val
-            );
+            ));
             return Ok(());
         }
 
-        // CASE D: end only → close last IN
+        // CASE D: end only → close latest IN
         if start.is_none()
             && let Some(end_time) = end
         {
@@ -206,7 +216,9 @@ impl AddLogic {
                 })?;
 
             if end_time <= last_in.time {
-                return Err(AppError::InvalidTime("OUT must be later than IN.".into()));
+                return Err(AppError::InvalidTime(
+                    "Invalid OUT: the OUT time must be later than the previous IN.".into(),
+                ));
             }
 
             let ev_out = Event::new(
@@ -214,7 +226,7 @@ impl AddLogic {
                 date,
                 end_time,
                 EventType::Out,
-                position,
+                pos_final,
                 Some(lunch_val),
                 false,
             );
@@ -222,17 +234,19 @@ impl AddLogic {
             insert_event(&pool.conn, &ev_out)?;
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
-            println!(
-                "Added OUT: {} {} -> {} (lunch {} min)",
+            success(format!(
+                "Added OUT on {} ({} → {}, lunch {} min).",
                 date_str, last_in.time, end_time, lunch_val
-            );
+            ));
             return Ok(());
         }
 
-        // CASE E: start + end → full pair
+        // CASE E: start + end → full IN/OUT pair
         if let (Some(start_time), Some(end_time)) = (start, end) {
             if end_time <= start_time {
-                return Err(AppError::InvalidTime("END must be later than IN.".into()));
+                return Err(AppError::InvalidTime(
+                    "Invalid pair: END time must be later than IN time.".into(),
+                ));
             }
 
             let ev_in = Event::new(
@@ -240,20 +254,20 @@ impl AddLogic {
                 date,
                 start_time,
                 EventType::In,
-                position,
+                pos_final,
                 Some(lunch_val),
                 false,
             );
-            let ev_out = Event::new(0, date, end_time, EventType::Out, position, Some(0), false);
+            let ev_out = Event::new(0, date, end_time, EventType::Out, pos_final, Some(0), false);
 
             insert_event(&pool.conn, &ev_in)?;
             insert_event(&pool.conn, &ev_out)?;
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
-            println!(
-                "Added IN/OUT pair for {}: {} → {} (lunch {} min)",
+            success(format!(
+                "Added IN/OUT pair on {}: {} → {} (lunch {} min).",
                 date_str, start_time, end_time, lunch_val
-            );
+            ));
             return Ok(());
         }
 
@@ -261,7 +275,7 @@ impl AddLogic {
         // Fallback (should never happen)
         // ------------------------------------------------
         Err(AppError::InvalidTime(
-            "Unhandled combination of parameters (internal bug).".into(),
+            "Unhandled combination of parameters. This is likely an internal bug.".into(),
         ))
     }
 }

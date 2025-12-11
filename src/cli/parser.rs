@@ -1,3 +1,4 @@
+use crate::export::ExportFormat;
 use clap::{Parser, Subcommand};
 
 /// Command-line interface definition for rTimelogger
@@ -31,6 +32,12 @@ pub enum Commands {
     Config {
         #[arg(long = "print", help = "Print the current configuration file")]
         print_config: bool,
+
+        #[arg(long = "check", help = "Check configuration file for missing fields")]
+        check: bool,
+
+        #[arg(long = "migrate", help = "Run configuration file migrations if needed")]
+        migrate: bool,
 
         #[arg(
             long = "edit",
@@ -146,8 +153,8 @@ pub enum Commands {
 
     /// Export work session data
     Export {
-        #[arg(long, value_name = "FORMAT", default_value = "csv")]
-        format: String,
+        #[arg(long, value_enum, default_value = "csv")]
+        format: ExportFormat,
 
         #[arg(long, value_name = "FILE")]
         file: String,

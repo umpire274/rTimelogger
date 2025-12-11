@@ -1,8 +1,8 @@
 use crate::cli::parser::Commands;
 use crate::config::Config;
-use crate::core::export::ExportLogic;
 use crate::db::pool::DbPool;
 use crate::errors::AppResult;
+use crate::export::ExportLogic;
 
 pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
     if let Commands::Export {
@@ -14,7 +14,7 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
     } = cmd
     {
         let mut pool = DbPool::new(&cfg.database)?;
-        ExportLogic::export(&mut pool, format, file, range, *events, *force)?;
+        ExportLogic::export(&mut pool, format.clone(), file, range, *events, *force)?;
     }
     Ok(())
 }

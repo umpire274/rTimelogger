@@ -2,14 +2,16 @@ use crate::cli::parser::Commands;
 use crate::config::Config;
 use crate::core::del::DeleteLogic;
 use crate::db::pool::DbPool;
-use crate::errors::AppResult;
+use crate::errors::{AppError, AppResult};
+use crate::ui::messages::{info, success, warning};
 use crate::utils::date;
-use std::io;
-use std::io::Write;
 
-/// Simple yes/no confirmation
+use std::io::{self, Write};
+
+/// Ask a yes/no confirmation from the user
 fn ask_confirmation(prompt: &str) -> bool {
-    print!("{prompt} [y/N]: ");
+    warning(prompt);
+    print!("Confirm [y/N]: ");
     let _ = io::stdout().flush();
 
     let mut s = String::new();
@@ -26,31 +28,39 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
         date: date_str,
     } = cmd
     {
-        let d = date::parse_date(date_str)
-            .ok_or_else(|| crate::errors::AppError::InvalidDate(date_str.into()))?;
+        let d = date::parse_date(date_str).ok_or_else(|| AppError::InvalidDate(date_str.into()))?;
 
         //
-        // Conferma all’utente
+        // Confirmation prompt
         //
-        if let Some(p) = pair {
-            // deleting a specific pair
-            let prompt = format!("⚠️  Delete pair #{p} for {d}? This cannot be undone.");
-            if !ask_confirmation(&prompt) {
-                println!("Operation cancelled.");
-                return Ok(());
-            }
+        let prompt = if let Some(p) = pair {
+            format!("Delete pair #{} for {}? This action is irreversible.", p, d)
         } else {
-            // deleting whole day
-            let prompt = format!("⚠️  Delete ALL events for {d}? This cannot be undone.");
-            if !ask_confirmation(&prompt) {
-                println!("Operation cancelled.");
-                return Ok(());
-            }
+            format!("Delete ALL events for {}? This action is irreversible.", d)
+        };
+
+        if !ask_confirmation(&prompt) {
+            info("Operation cancelled.");
+            return Ok(());
         }
 
+        //
+        // Execute deletion
+        //
         let mut pool = DbPool::new(&cfg.database)?;
 
-        DeleteLogic::apply(&mut pool, d, *pair).expect("TODO: panic message");
+        match DeleteLogic::apply(&mut pool, d, *pair) {
+            Ok(_) => {
+                if let Some(p) = pair {
+                    success(format!("Pair #{} for {} has been deleted.", p, d));
+                } else {
+                    success(format!("All events for {} have been deleted.", d));
+                }
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
     }
 
     Ok(())

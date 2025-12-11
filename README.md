@@ -14,6 +14,41 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
+## 🚀 What's new in **0.8.0-beta2**
+
+### 📝 Fully rewritten PDF Export
+
+- New **multipage** PDF engine with:
+    - automatic page breaks
+    - header/footer with dynamic title and page numbers
+    - advanced table layout with zebra-striping
+    - automatic column width calculation
+- Report title is now derived from the `--range` argument.
+
+### 📤 Modular Export System
+
+- Introduced `ExportFormat` enum with automatic validation.
+- Added `--format help` to list available formats.
+- Unified CSV / JSON / XLSX implementations.
+
+### ⚙️ Configuration & Migrations
+
+- New subcommand: `config --migrate` to apply configuration migrations.
+- Improved YAML loading and automatic insertion of missing fields.
+
+### 💬 Unified CLI Messaging
+
+- New standardized messaging system (`info`, `ok`, `warning`, `error`) with icons.
+- Cleaner, more consistent, and easier to localize.
+
+### 📚 Internal Maintenance
+
+- Complete refactor of the export modules.
+- Removed duplication and consolidated helper functions.
+- Fully rewritten and stabilized `PdfManager`.
+
+---
+
 ## ✨ New in v0.8.0-beta1
 
 ### 🚀 Command `list` fully rewritten

@@ -27,8 +27,12 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
         // 2. Parse position (default = Office)
         //
         let pos_final = match pos {
-            Some(code) => Location::from_code(code)
-                .ok_or_else(|| AppError::InvalidPosition(code.to_string()))?,
+            Some(code) => Location::from_code(code).ok_or_else(|| {
+                AppError::InvalidPosition(format!(
+                    "Invalid location code '{}'. Use a valid code such as 'office', 'remote', 'customer', ...",
+                    code
+                ))
+            })?,
             None => Location::Office,
         };
 

@@ -8,6 +8,7 @@ pub mod db;
 pub mod errors;
 pub mod export;
 pub mod models;
+pub mod ui;
 pub mod utils;
 
 use clap::Parser;

@@ -1,3 +1,6 @@
+pub mod migrate;
+
+use crate::ui::messages::{error, info, warning};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
@@ -91,7 +94,7 @@ impl Config {
             if let Ok(yaml) = serde_yaml::to_string(&defaults)
                 && let Err(e) = fs::write(&path, yaml)
             {
-                eprintln!("⚠️ Failed to write default config file: {e}");
+                error(format!("Failed to write default config file: {}", e));
             }
 
             return defaults;
@@ -101,13 +104,16 @@ impl Config {
         let content = match fs::read_to_string(&path) {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("⚠️ Failed to read config file ({e}), using defaults.");
+                error(format!(
+                    "Failed to read config file ({}), using defaults.",
+                    e
+                ));
                 return Config::default();
             }
         };
 
         if content.trim().is_empty() {
-            eprintln!("⚠️ Config file is empty, regenerating defaults.");
+            warning("Config file is empty, regenerating defaults.");
             let defaults = Config::default();
             if let Ok(yaml) = serde_yaml::to_string(&defaults) {
                 let _ = fs::write(&path, yaml);
@@ -119,7 +125,7 @@ impl Config {
         let raw_yaml: serde_yaml::Value = match serde_yaml::from_str(&content) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("⚠️ Failed to parse raw YAML ({e}), using defaults.");
+                error(format!("Failed to parse raw YAML ({}), using defaults.", e));
                 let defaults = Config::default();
                 if let Ok(yaml) = serde_yaml::to_string(&defaults) {
                     let _ = fs::write(&path, yaml);
@@ -132,7 +138,10 @@ impl Config {
         let mut loaded: Config = match serde_yaml::from_str(&content) {
             Ok(cfg) => cfg,
             Err(e) => {
-                eprintln!("⚠️ Failed to parse Config struct ({e}), using defaults.");
+                error(format!(
+                    "Failed to parse Config struct ({}), using defaults.",
+                    e
+                ));
                 let defaults = Config::default();
                 if let Ok(yaml) = serde_yaml::to_string(&defaults) {
                     let _ = fs::write(&path, yaml);
@@ -150,10 +159,10 @@ impl Config {
                 if raw_yaml.get($yaml_key).is_none() {
                     // nel file non c'è proprio la chiave → aggiungiamo il default
                     loaded.$field = defaults.$field.clone();
-                    eprintln!(
-                        "⚠️ Missing field '{}' in config file, inserting default.",
+                    error(format!(
+                        "Missing field '{}' in config file, inserting default.",
                         $yaml_key
-                    );
+                    ));
                     modified = true;
                 }
             };
@@ -170,13 +179,13 @@ impl Config {
         // Numeric fields: se la chiave non esiste nel file, li impostiamo a default
         if raw_yaml.get("min_duration_lunch_break").is_none() {
             loaded.min_duration_lunch_break = defaults.min_duration_lunch_break;
-            eprintln!("⚠️ Missing field 'min_duration_lunch_break', inserting default.");
+            error("Missing field 'min_duration_lunch_break', inserting default.");
             modified = true;
         }
 
         if raw_yaml.get("max_duration_lunch_break").is_none() {
             loaded.max_duration_lunch_break = defaults.max_duration_lunch_break;
-            eprintln!("⚠️ Missing field 'max_duration_lunch_break', inserting default.");
+            error("Missing field 'max_duration_lunch_break', inserting default.");
             modified = true;
         }
 
@@ -186,9 +195,9 @@ impl Config {
                 let _ = fs::create_dir_all(parent);
             }
             if let Err(e) = fs::write(&path, yaml) {
-                eprintln!("⚠️ Failed to update config file: {e}");
+                error(format!("⚠️ Failed to update config file: {}", e));
             } else {
-                eprintln!("🔧 Config file updated with missing fields.");
+                info("🔧 Config file updated with missing fields.");
             }
         }
 
@@ -222,7 +231,7 @@ impl Config {
             let yaml = serde_yaml::to_string(&config).unwrap();
             let mut file = fs::File::create(Self::config_file())?;
             file.write_all(yaml.as_bytes())?;
-            println!("✅ Config file: {:?}", Self::config_file());
+            info(format!("Config file: {:?}", Self::config_file()));
         }
 
         // Create empty DB file if not exists
@@ -230,7 +239,7 @@ impl Config {
             fs::File::create(&db_path)?;
         }
 
-        println!("✅ Database:    {:?}", db_path);
+        info(format!("✅ Database:    {:?}", db_path));
 
         Ok(())
     }
