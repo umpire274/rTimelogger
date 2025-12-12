@@ -10,6 +10,7 @@ pub struct Pair {
     pub duration_minutes: i64,
     pub lunch_minutes: i64,
     pub position: Location,
+    pub work_gap: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -77,6 +78,7 @@ pub fn build_timeline(events: &[Event]) -> Timeline {
                     duration_minutes: worked_minutes,
                     lunch_minutes,
                     position: in_ev.location,
+                    work_gap: out_ev.work_gap,
                 });
 
                 i += 2;
@@ -92,6 +94,7 @@ pub fn build_timeline(events: &[Event]) -> Timeline {
                 duration_minutes: 0,
                 lunch_minutes: in_ev.lunch.unwrap_or(0) as i64,
                 position: in_ev.location,
+                work_gap: false,
             });
         }
 
@@ -105,7 +108,7 @@ pub fn build_timeline(events: &[Event]) -> Timeline {
         let p1 = &w[0];
         let p2 = &w[1];
 
-        if let (Some(out1), _) = (&p1.out_event, &p2.in_event) {
+        if let Some(out1) = &p1.out_event {
             let start = out1.timestamp();
             let end = p2.in_event.timestamp();
 
@@ -114,7 +117,8 @@ pub fn build_timeline(events: &[Event]) -> Timeline {
                     start,
                     end,
                     duration_minutes: (end - start).num_minutes(),
-                    is_work_gap: false, // in alpha everything is NON working
+                    // ✅ il gap è lavorativo se l'OUT del pair precedente ha work_gap=true
+                    is_work_gap: out1.work_gap,
                 });
             }
         }

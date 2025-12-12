@@ -51,10 +51,10 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
             println!("EVENTS:");
             println!();
             println!(
-                " {:^17} | {:^4} | {:^12} | {:^16} | {:^6} | {:^4}",
-                "Date Time", "Type", "Lunch", "Position", "Source", "Pair"
+                " {:^17} | {:^4} | {:^12} | {:^16} | {:^6} | {:^4} | {:^8}",
+                "Date Time", "Type", "Lunch", "Position", "Source", "Pair", "Work Gap"
             );
-            println!("{:-<76}", "-");
+            println!("{:-<88}", "-");
         }
 
         for d in dates {
@@ -206,6 +206,8 @@ fn print_header(period: &Option<String>) {
 //
 
 fn print_raw_events(events: &[Event]) {
+    let mut last_date: Option<String> = None;
+
     for ev in events {
         //eprintln!("event: {:?}", ev);
         let lunch = colors::colorize_optional(&format!("{:>2} min", ev.lunch.unwrap_or(0)));
@@ -213,15 +215,27 @@ fn print_raw_events(events: &[Event]) {
         let pos_color = ev.location.color();
         let pos_fmt = formatting::pad_right(pos_label, 16);
 
-        let dash = if ev.kind.is_in() { "→" } else { " " };
-        let date_str = if ev.kind.is_in() {
-            ev.date_str()
+        let (dash, date_str) = if ev.kind.is_in() {
+            let current_date = ev.date_str(); // String stabile
+
+            match &last_date {
+                Some(d) if d == &current_date => {
+                    // stesso giorno → niente freccia, niente data
+                    (" ", " ".repeat(10))
+                }
+                _ => {
+                    // nuovo giorno → freccia + data
+                    last_date = Some(current_date.clone());
+                    ("→", current_date)
+                }
+            }
         } else {
-            String::new()
+            // OUT → mai freccia, mai data
+            (" ", " ".repeat(10))
         };
 
         println!(
-            "{} {:^10} {} | {:>4} | lunch {} | {}{}\x1b[0m | {:^6} | {:>2}",
+            "{} {:^10} {} | {:>4} | lunch {} | {}{}\x1b[0m | {:^6} | {:>3}  | {:^8}",
             dash,
             date_str,
             colors::colorize_in_out(&ev.time_str(), ev.kind.is_in()),
@@ -230,10 +244,12 @@ fn print_raw_events(events: &[Event]) {
             pos_color,
             pos_fmt,
             ev.source,
-            ev.pair
+            ev.pair,
+            if ev.work_gap { "YES" } else { "" }
         );
     }
 }
+
 //
 // ───────────────────────────────────────────────────────────────────────────────
 // Daily row (the core of the command)
@@ -303,7 +319,15 @@ fn print_daily_row(
     let end_c = colors::colorize_optional(&end_str);
 
     // Surplus
-    let surplus_opt = last_out_opt.map(|out| (out - expected_exit).num_minutes());
+    let non_work_gap_minutes: i64 = timeline
+        .gaps
+        .iter()
+        .filter(|g| !g.is_work_gap)
+        .map(|g| g.duration_minutes)
+        .sum();
+
+    let surplus_opt =
+        last_out_opt.map(|out| (out - expected_exit).num_minutes() - non_work_gap_minutes);
 
     let (surplus_str, surplus_color) = match surplus_opt {
         None => ("-".to_string(), colors::GREY),
@@ -351,20 +375,20 @@ fn print_details(summary: &DaySummary) {
 
         let worked = colors::colorize_optional(&mins2readable(p.duration_minutes, false, false));
         let lunch = colors::colorize_optional(&format!("{:>2} min", p.lunch_minutes));
-        let day_position = get_day_position(&summary.timeline);
-        let pos_label = day_position.label();
-        let pos_color = day_position.color();
+        let pos_label = p.position.label();
+        let pos_color = p.position.color();
         let pos_fmt = formatting::pad_right(pos_label, 16);
 
         println!(
-            "      Pair {:>2}: IN {:^5} | OUT {:^5} | worked {:^7} | lunch {} | {}{}\x1b[0m",
+            "      Pair {:>2}: IN {:^5} | OUT {:^5} | worked {:^7} | lunch {} | {}{}\x1b[0m | {}",
             idx + 1,
             in_c,
             out_c,
             worked,
             lunch,
             pos_color,
-            pos_fmt
+            pos_fmt,
+            if p.work_gap { "YES" } else { "" }
         );
     }
     println!();

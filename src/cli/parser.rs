@@ -93,6 +93,22 @@ pub enum Commands {
         #[arg(long = "lunch", help = "Lunch break duration in minutes")]
         lunch: Option<i32>,
 
+        /// Mark this pair as a work gap between OUT and IN events
+        #[arg(
+            long = "work-gap",
+            conflicts_with = "no_work_gap",
+            help = "Mark this pair as a work gap between OUT and IN events"
+        )]
+        work_gap: bool,
+
+        /// Do not mark this pair as a work gap between OUT and IN events
+        #[arg(
+            long = "no-work-gap",
+            conflicts_with = "work_gap",
+            help = "Do not mark this pair as a work gap between OUT and IN events"
+        )]
+        no_work_gap: bool,
+
         /// Clock-out time (HH:MM)
         #[arg(long = "out", help = "Clock-out time (HH:MM)")]
         end: Option<String>,

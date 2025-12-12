@@ -1,5 +1,34 @@
 # Changelog
 
+## [v0.8.0-beta3] - 2025-12-15
+
+### ✨ Added
+
+* 🔗 **Working gap support between pairs** via `--work-gap` flag on `OUT` events.
+* ✂️ Ability to **remove a working gap** using `--no-work-gap` in edit mode.
+* New `work_gap` boolean field stored in the `events` table.
+* Explicit confirmation messages when enabling or removing work gaps.
+
+### 🧠 Changed
+
+* **Expected / surplus calculation** now correctly accounts for non-working gaps between pairs.
+* `OUT` events without `--pos` now **inherit the position from the corresponding `IN`**.
+* Day details view now shows the **position of each pair**, not the aggregated day position.
+* Improved visual output in `list --events`: repeated dates are no longer duplicated for multiple pairs.
+
+### 🐞 Fixed
+
+* Incorrect surplus calculation when non-working gaps were present between pairs.
+* Wrong position assigned to `OUT` events when `--pos` was omitted.
+* Multiple inconsistencies in pair reconstruction and gap handling logic.
+
+### 🗄️ Database
+
+* Migration added to introduce the `work_gap` column to the `events` table.
+* Automatic recalculation of pairs, expected time, and surplus after gap updates.
+
+--- 
+
 ## [0.8.0-beta2] - 2025-12-12
 
 ### ✨ Added

@@ -73,7 +73,7 @@ pub fn map_row(row: &Row) -> Result<Event> {
         kind,
         location,
         lunch: row.get("lunch_break")?,
-        work_gap: false,
+        work_gap: row.get::<_, i32>("work_gap")? == 1,
         pair: row.get("pair")?,
         source: row.get("source")?,
         meta: row.get("meta")?,
@@ -83,14 +83,15 @@ pub fn map_row(row: &Row) -> Result<Event> {
 
 pub fn insert_event(conn: &Connection, ev: &Event) -> AppResult<()> {
     conn.execute(
-        "INSERT INTO events (date, time, kind, position, lunch_break, pair, source, meta, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO events (date, time, kind, position, lunch_break, work_gap, pair, source, meta, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             ev.date.format("%Y-%m-%d").to_string(),
             ev.time.format("%H:%M").to_string(),
             ev.kind.to_db_str(),
             ev.location.to_db_str(),
             ev.lunch.unwrap_or(0),
+            if ev.work_gap { 1 } else { 0 },
             ev.pair,
             ev.source,
             ev.meta,
@@ -187,14 +188,16 @@ pub fn update_event(conn: &Connection, ev: &Event) -> AppResult<()> {
         "UPDATE events
          SET date = ?1, time = ?2, kind = ?3,
              position = ?4, lunch_break = ?5,
-             pair = ?6, source = ?7, meta = ?8, created_at = ?9
-         WHERE id = ?10",
+             work_gap = ?6, pair = ?7,
+             source = ?8, meta = ?9, created_at = ?10
+         WHERE id = ?11",
         rusqlite::params![
             ev.date.to_string(),
             ev.time.format("%H:%M").to_string(),
             ev.kind.to_db_str(),
             ev.location.to_db_str(),
             ev.lunch.unwrap_or(0),
+            if ev.work_gap { 1 } else { 0 },
             ev.pair,
             ev.source,
             ev.meta,
