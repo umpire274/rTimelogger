@@ -14,6 +14,37 @@ The tool calculates the expected exit time and the surplus of worked minutes.
 
 ---
 
+## 🚀 What's new in **0.8.0-beta3**
+
+### 🔗 **Accurate work gap handling between sessions**
+
+This release introduces **full support for working and non-working gaps** between consecutive IN/OUT pairs on the same day.
+
+- You can now explicitly mark a gap as **working time** using `--work-gap` 
+- Gaps not marked as working are correctly **excluded from worked time** 
+- Work gaps are **stored in the database** and can be edited later
+
+### ✏️ **Edit support for work gaps**
+
+- Use `--edit --pair <N> --work-gap` to mark a gap as working 
+- Use `--edit --pair <N> --no-work-gap` to remove it 
+- Each change triggers a **recalculation of expected time and surplus**
+- Clear confirmation messages are shown (e.g. _🔗 work gap added_ / _✂️ work gap removed_)
+
+### 🧮 **Correct surplus calculation**
+
+- Surplus is now computed using the **actual worked time**, excluding non-working gaps 
+- Complex days with multiple pairs and mixed gaps are handled correctly
+
+### 📋 **Improved event and detail views**
+
+- Pair details now show the **actual position of each pair**
+- Raw event listing avoids repeating the date for multiple pairs on the same day 
+- Visual indicators make work gaps immediately recognizable
+
+> ⚠️ **Note**: v0.8.0-beta3 includes internal schema changes. A safety backup is automatically created when migrating from older versions.
+
+---
 ## 🚀 What's new in **0.8.0-beta2**
 
 ### 📝 Fully rewritten PDF Export

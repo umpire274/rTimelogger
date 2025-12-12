@@ -13,6 +13,8 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
         pos,
         start,
         lunch,
+        work_gap,
+        no_work_gap,
         end,
         edit_pair,
         edit,
@@ -56,6 +58,14 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
         //
         let mut pool = DbPool::new(&cfg.database)?;
 
+        let work_gap: Option<bool> = if *work_gap {
+            Some(true)
+        } else if *no_work_gap {
+            Some(false)
+        } else {
+            None
+        };
+
         //
         // 7. Execute logic
         //
@@ -65,6 +75,7 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
             pos_final,
             start_parsed.unwrap(),
             lunch_opt,
+            work_gap,
             end_parsed.unwrap(),
             *edit,
             *edit_pair,
