@@ -1,5 +1,106 @@
 # Changelog
 
+## [v0.8.0] - 2025-12-18
+
+### 🚀 Stable release — Timeline & Work Gap engine
+
+This release marks the **first stable 0.8.x version** and concludes the alpha/beta cycle with a fully consolidated
+timeline engine, correct multi-pair handling, and a refined CLI experience.
+
+---
+
+### ✨ Highlights
+
+- **Stable multi-pair daily model**
+    - Unlimited IN/OUT pairs per day
+    - Persistent pair numbering
+    - Fully deterministic timeline reconstruction
+
+- **Working gap support (final)**
+    - Explicit `--work-gap` / `--no-work-gap` flags on `OUT` events
+    - Gaps can be added, removed, or edited retroactively
+    - Correct impact on worked time, expected exit, and surplus
+    - Clear visual indicators (🔗 / ✂️)
+
+- **Accurate time calculations**
+    - Worked time now correctly:
+        - sums all pairs
+        - subtracts non-working gaps
+        - includes working gaps only when explicitly marked
+    - Expected exit is consistently based on:
+        - first IN of the day
+        - configured minimum working time
+        - lunch rules and windows
+    - Surplus calculation is now fully reliable in all scenarios
+
+---
+
+### 🧠 Changed
+
+- `OUT` events without `--pos` now **inherit the position of the corresponding IN**
+- Day details view shows **pair-level positions**, not aggregated day position
+- Timeline, pairing, and gap logic fully unified across:
+    - `list`
+    - `list --events`
+    - `list --details`
+    - exports
+
+---
+
+### 🗄️ Database & Migration
+
+- New stable column `events.work_gap`
+- Safe, idempotent migrations with:
+    - automatic schema alignment
+    - backup before destructive changes
+- Automatic recalculation of pairs and daily summaries after edits
+
+---
+
+### 🖥️ CLI & UX
+
+- Unified message system across all commands:
+    - ℹ️ info · ⚠️ warning · ❌ error · ✅ success
+- Clear, explicit confirmation messages for gap edits
+- Cleaner event listings:
+    - no duplicated dates for multiple pairs
+    - improved visual alignment
+
+---
+
+### 📦 Export system (stable)
+
+- Fully refactored export architecture
+- Supported formats:
+    - CSV
+    - JSON
+    - XLSX
+    - PDF (multipage, styled, dynamic titles)
+- Shared helpers and consistent overwrite handling
+
+---
+
+### ⚠️ Breaking changes
+
+- Legacy `work_sessions` table is no longer used
+- Timeline-based model is now the single source of truth
+- CLI behavior fully aligned with the new flag-based syntax introduced in 0.8.x
+
+---
+
+### ✅ Final notes
+
+`v0.8.0` represents a **major architectural milestone**.
+The internal engine is now considered **stable, correct, and extensible**.
+
+Future releases will focus on:
+
+- automated tests
+- performance refinements
+- advanced reporting and statistics
+
+---
+
 ## [v0.8.0-beta3] - 2025-12-15
 
 ### ✨ Added
