@@ -879,7 +879,7 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "rtimelogger"
-version = "0.8.0-beta3"
+version = "0.8.0"
 dependencies = [
  "ansi_term",
  "assert_cmd",
