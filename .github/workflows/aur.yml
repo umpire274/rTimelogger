@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euxo pipefail
 
-          mkdir -p aur/rotorix-bin
+          mkdir -p aur/rtimelogger
 
           cat > aur/rtimelogger/PKGBUILD <<'EOF'
           pkgname=rtimelogger
