@@ -16,8 +16,8 @@ jobs:
       - name: Init pacman
         run: |
           set -euxo pipefail
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed git sudo base-devel fakeroot binutils
+          pacman -Sy --noconfirm
+          pacman -S --noconfirm git sudo fakeroot binutils
 
       - name: Prepare build user
         run: |
@@ -31,9 +31,10 @@ jobs:
         run: |
           set -euxo pipefail
 
-          mkdir -p aur/rtimelogger
+          WORKDIR="$GITHUB_WORKSPACE/aur/rtimelogger"
+          mkdir -p "$WORKDIR"
 
-          cat > aur/rtimelogger/PKGBUILD <<'EOF'
+          cat > "$WORKDIR/PKGBUILD" <<'EOF'
           pkgname=rtimelogger
           pkgver=0.8.0
           pkgrel=1
@@ -41,35 +42,34 @@ jobs:
           arch=("x86_64")
           url="https://github.com/umpire274/rtimelogger"
           license=("MIT")
-          provides=("rtimelogger")
-          conflicts=("rtimelogger")
-
+          
           source=(
-            "$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/rtimelogger-$pkgver-x86_64-unknown-linux-gnu.tar.gz"
+            "rtimelogger-${pkgver}-x86_64-unknown-linux-gnu.tar.gz::https://github.com/umpire274/rtimelogger/releases/download/v${pkgver}/rtimelogger-${pkgver}-x86_64-unknown-linux-gnu.tar.gz"
           )
-
+          
           sha256sums=(
             "443867ecb9f29fefc359729c593fd0a99ab707c41deba20c7b59be22b56d8103"
           )
-
-          # keywords=('time' 'timelog' 'tracking' 'logger' 'cli' 'rust' 'productivity' 'worklog' 'timesheet' 'task' 'management')
-
+          
           package() {
-            install -Dm755 "$srcdir/rtimelogger" "$pkgdir/usr/bin/rtimelogger"
-            install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-            install -Dm644 "$srcdir/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
-            install -Dm644 "$srcdir/CHANGELOG.md" "$pkgdir/usr/share/doc/$pkgname/CHANGELOG.md"
+            install -Dm755 rtimelogger "${pkgdir}/usr/bin/rtimelogger"
+            install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/rtimelogger/LICENSE"
+            install -Dm644 README.md "${pkgdir}/usr/share/doc/rtimelogger/README.md"
+            install -Dm644 CHANGELOG.md "${pkgdir}/usr/share/doc/rtimelogger/CHANGELOG.md"
           }
           EOF
 
-      - name: Generate .SRCINFO
+      - name: Generate SRCINFO
         run: |
           set -euxo pipefail
-          chown -R builder:builder aur
-          su - builder -c "cd aur/rtimelogger && makepkg --printsrcinfo > .SRCINFO"
 
-      - name: Upload .SRCINFO artifact
+          WORKDIR="$GITHUB_WORKSPACE/aur/rtimelogger"
+          chown -R builder:builder "$WORKDIR"
+
+          su - builder -c "cd '$WORKDIR' && makepkg --printsrcinfo --nodeps > SRCINFO.txt"
+
+      - name: Upload SRCINFO artifact
         uses: actions/upload-artifact@v4
         with:
           name: rtimelogger-srcinfo
-          path: aur/rtimelogger/.SRCINFO
+          path: aur/rtimelogger/SRCINFO.txt
