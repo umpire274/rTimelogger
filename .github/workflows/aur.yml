@@ -1,0 +1,75 @@
+name: AUR packaging
+
+on:
+  workflow_dispatch:
+
+jobs:
+  aur:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Init pacman
+        run: |
+          set -euxo pipefail
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed git sudo base-devel fakeroot binutils
+
+      - name: Prepare build user
+        run: |
+          set -euxo pipefail
+          useradd -m builder
+          passwd -d builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+      - name: Write PKGBUILD
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          mkdir -p aur/rotorix-bin
+
+          cat > aur/rtimelogger/PKGBUILD <<'EOF'
+          pkgname=rtimelogger
+          pkgver=0.8.0
+          pkgrel=1
+          pkgdesc="Rust program to track working hours and calculate surplus using SQLite"
+          arch=("x86_64")
+          url="https://github.com/umpire274/rtimelogger"
+          license=("MIT")
+          provides=("rtimelogger")
+          conflicts=("rtimelogger")
+
+          source=(
+            "$pkgname-$pkgver.tar.gz::$url/releases/download/v$pkgver/rtimelogger-$pkgver-x86_64-unknown-linux-gnu.tar.gz"
+          )
+
+          sha256sums=(
+            "443867ecb9f29fefc359729c593fd0a99ab707c41deba20c7b59be22b56d8103"
+          )
+
+          # keywords=('time' 'timelog' 'tracking' 'logger' 'cli' 'rust' 'productivity' 'worklog' 'timesheet' 'task' 'management')
+
+          package() {
+            install -Dm755 "$srcdir/rtimelogger" "$pkgdir/usr/bin/rtimelogger"
+            install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+            install -Dm644 "$srcdir/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
+            install -Dm644 "$srcdir/CHANGELOG.md" "$pkgdir/usr/share/doc/$pkgname/CHANGELOG.md"
+          }
+          EOF
+
+      - name: Generate .SRCINFO
+        run: |
+          set -euxo pipefail
+          chown -R builder:builder aur
+          su - builder -c "cd aur/rtimelogger && makepkg --printsrcinfo > .SRCINFO"
+
+      - name: Upload .SRCINFO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtimelogger-srcinfo
+          path: aur/rtimelogger/.SRCINFO
