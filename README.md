@@ -136,24 +136,58 @@ brew tap umpire274/tap
 brew install rtimelogger
 ```
 
-### Debian / Ubuntu
+### 🐧📦 Linux (Debian / Ubuntu)
 
-Prebuilt `.deb` packages are available on GitHub Releases.
+Starting from **v0.8.0**, rFortune provides an official **`.deb` package**.
 
-1. Download the appropriate package for your architecture:
-   - `amd64` for 64-bit systems
-   - `i386` for 32-bit systems
-
-2. Install using `dpkg`:
+You can install it directly from the GitHub Releases page:
 
 ```bash
 sudo dpkg -i rtimelogger_<version>_amd64.deb
-sudo apt -f install
 ```
 
-Replace `<version>` with the release version you downloaded.
+To verify integrity, download the corresponding `.sig` file and verify it with GPG (see below).
 
-The `rtimelogger` command will be available system-wide after installation.
+```bash
+sha256sum -c rtimelogger_<version>_amd64.deb.sha256
+gpg --verify rtimelogger_<version>_amd64.deb.sig
+```
+
+If dependencies are missing, complete the installation with:
+
+```bash
+sudo apt --fix-broken install
+```
+
+### 🐧🔧 Other Linux distros
+
+You can still use the prebuilt tarball:
+
+```bash
+tar -xvf rtimelogger-<version>-x86_64-unknown-linux-gnu.tar.gz
+sudo mv rtimelogger /usr/local/bin/
+```
+
+### 🍎 macOS
+
+You can use the prebuilt tarballs for Intel or Apple Silicon:
+
+```bash
+tar -xvf rtimelogger-<version>-x86_64-apple-darwin.tar.gz
+sudo mv rtimelogger /usr/local/bin/
+```
+
+or
+
+```bash
+tar -xvf rtimelogger-<version>-aarch64-apple-darwin.tar.gz
+sudo mv rtimelogger /usr/local/bin/
+```
+
+### 🪟 Windows
+
+Download the prebuilt zip file, extract it, and move `rtimelogger.exe` to a directory in your `PATH`, e.g.,
+`C:\Windows\System32\` or create a dedicated folder like `C:\Program Files\rtimelogger\` and add it to your system `PATH`.
 
 ---
 
