@@ -136,6 +136,21 @@ brew tap umpire274/tap
 brew install rtimelogger
 ```
 
+## Install (Debian / Ubuntu)
+
+Download the `.deb` package from GitHub Releases and install it with:
+
+```bash
+# Release x86_64
+sudo dpkg -i  rtimelogger_0.8.0-1_amd64.deb
+
+# Release i686
+sudo dpkg -i   rtimelogger_0.8.0-1_i386.deb 
+
+# Installation 
+sudo apt -f install
+```
+
 ---
 
 ## ⚙️ Configuration
