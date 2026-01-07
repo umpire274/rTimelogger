@@ -157,10 +157,6 @@ pub enum Commands {
 
         #[arg(long = "pairs", help = "Filter by pair id (only with --events)")]
         pairs: Option<usize>,
-
-        #[arg(long = "summary", help = "Show summarized per-pair rows")]
-        summary: bool,
-
     },
 
     /// Create a backup copy of the database

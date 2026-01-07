@@ -201,29 +201,170 @@ rtimelogger add 2025-12-15 --edit --pair 2 --no-work-gap
 
 ---
 
-## 📋 List data — `rtimelogger list`
+## 📋 Listing sessions — `rtimelogger list`
+
+The `list` command displays saved work sessions, supporting multiple layouts and levels of detail.
+
+### **Basic usage**:
 
 ```bash
 rtimelogger list                     # current month
-rtimelogger list --today
-rtimelogger list --period 2025-12
-rtimelogger list --period 2025-12-15
-rtimelogger list --events
 ```
 
-### ℹ️ Note on `--details`
+Shows the sessions for the current month using the default tabular layout.
 
-`--details` is valid **only** with:
-
-* `--today`
-* `--period <single day>`
-
-Examples:
+### 📅 **Supported periods**
 
 ```bash
-rtimelogger list --today --details
-rtimelogger list --period 2025-12-15 --details
+rtimelogger list --period 2025-12
+rtimelogger list --period 2025
+rtimelogger list --period 2025-12-01
+rtimelogger list --period 2025-12-01:2025-12-31
+rtimelogger list --period all
 ```
+
+### 📆 **Weekday display**
+
+The weekday is shown inside the date column, using the format:
+
+```text
+YYYY-MM-DD (Mo)
+YYYY-MM-DD (Monday)
+```
+
+The format is controlled by the show_weekday configuration option:
+
+| Value    | Output example        |
+|----------|-----------------------|
+| `none`   | `2025-12-19`          |
+| `short`  | `2025-12-19 (Mo)`     |
+| `medium` | `2025-12-19 (Mon)`    |
+| `long`   | `2025-12-19 (Monday)` |
+
+### 📊 Standard output
+
+```bash
+rtimelogger list --period 2025-12
+```
+
+Example:
+
+```text
+DATE (WD)        | POSITION        |  IN   | LNCH  |  OUT  |  TGT  |  ΔWORK
+---------------------------------------------------------------------------
+2025-12-19 (Fr)  | Remote          | 08:55 | 00:30 | 18:27 | 17:01 | -02h04m
+```
+
+**Columns explained**:
+
+- **IN** – first check-in of the day
+- **LNCH** – total lunch break duration
+- **OUT** – last check-out
+- **TGT** – planned exit time (minimum required work time)
+- **ΔWORK** – worked surplus or deficit
+
+### 🧾 Pair details (--details)
+
+```bash
+rtimelogger list --period 2025-12-19 --details
+```
+
+Displays the **individual** IN/OUT pairs for the selected day. It is available **only** for single-day periods or
+`--today`.
+
+**Output example**:
+
+```text
+DETAILS
+PAIR |  IN   |  OUT  | WORKED | LUNCH | POSITION | WG
+------------------------------------------------------
+  1  | 08:55 | 09:37 | 00h42m |  0m   | Remote   |
+  2  | 13:07 | 18:27 | 04h50m | 30m   | Remote   |
+```
+
+**Columns explained**:
+
+- **PAIR** – pair index
+- **IN** / **OUT** – timestamps for the pair
+- **WORKED** – worked time for the pair
+- **LUNCH** – lunch break for the pair
+- **POSITION** – position for the pair
+- **WG** – working gap indicator (🔗 for working gap, ✂️ for non-working gap)
+
+### 📦 Compact view (--compact)
+
+```bash
+rtimelogger list --period 2025-12 --compact
+```
+
+Shows a condensed, single-line-per-day view, suitable for long periods.
+
+Example:
+
+```text
+DATE (WD)        | POSITION | IN / LNCH / OUT       | TGT   | ΔWORK
+--------------------------------------------------------------------
+2025-12-19 (Fr)  | Remote   | 08:55 / 00:30 / 18:27 | 17:01 | Δ -02h04m
+2025-12-22 (Mo)  | Holiday  | --:-- / --:-- / --:-- | --:-- | Δ -
+```
+
+**Characteristics**:
+
+- compact horizontal layout
+- weekday forced to short format
+- no pair details
+
+> ⚠️ `--compact` **cannot be combined** with `--details`
+
+### Events listing (--events)
+
+```bash
+rtimelogger list --period 2025-12-15 --events
+```
+
+Displays the raw IN / OUT events for the selected day.
+
+**Output example**:
+
+```text
+EVENTS:
+
+     Date Time     | Type |    Lunch     |     Position     | Source | Pair | Work Gap
+----------------------------------------------------------------------------------------
+→ 2025-12-19 08:55 |   in | lunch  0 min | Remote           |  cli   |   1  |
+             09:37 |  out | lunch  0 min | Remote           |  cli   |   1  |
+             13:07 |   in | lunch  0 min | Remote           |  cli   |   2  |
+             18:27 |  out | lunch 30 min | Remote           |  cli   |   2  |
+```
+
+### 🏖️ Holiday days
+
+Days marked as **Holiday**:
+
+- display no time values (--:--)
+- do not affect surplus calculations
+- are rendered as neutral rows
+
+### ➕ Period total
+
+At the end of the output, a cumulative total is always displayed:
+
+```text
+Σ Total ΔWORK: +02h04m
+```
+
+The total accounts for:
+
+- lunch breaks
+- work gaps
+- holidays (neutral contribution)
+
+### 🔢 JSON output (--json)
+
+```bash
+rtimelogger list --period 2025-12 --json
+```
+Outputs the data in JSON format for easy integration with other tools or scripts.
 
 ---
 
