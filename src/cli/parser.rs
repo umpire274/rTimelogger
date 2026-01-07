@@ -78,10 +78,10 @@ pub enum Commands {
         /// Date of the event (YYYY-MM-DD)
         date: String,
 
-        /// Position (O = Office, R = Remote, H = Home, C = Client, M = Mixed)
+        /// Position (O = Office, R = Remote, H = Holiday, C = Client, M = Mixed)
         #[arg(
             long = "pos",
-            help = "Work position: O=Office, R=Remote, H=Home, C=Client, M=Mixed"
+            help = "Work position: O=Office, R=Remote, H=Holiday, C=Client, M=Mixed"
         )]
         pos: Option<String>,
 
@@ -136,6 +136,10 @@ pub enum Commands {
 
     /// List sessions
     List {
+        /// Compact output (single dense line per day)
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        compact: bool,
+
         #[arg(long, short, help = "Filter by year/month/day or a custom range")]
         period: Option<String>,
 
@@ -153,9 +157,6 @@ pub enum Commands {
 
         #[arg(long = "pairs", help = "Filter by pair id (only with --events)")]
         pairs: Option<usize>,
-
-        #[arg(long = "summary", help = "Show summarized per-pair rows")]
-        summary: bool,
     },
 
     /// Create a backup copy of the database

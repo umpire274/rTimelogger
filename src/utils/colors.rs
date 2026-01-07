@@ -12,6 +12,7 @@ pub const YELLOW: &str = "\x1b[33m";
 pub const BLUE: &str = "\x1b[34m";
 pub const CYAN: &str = "\x1b[36m";
 pub const MAGENTA: &str = "\x1b[35m";
+pub const SECTION_BAR: &str = "\x1b[1;100;97m"; // bold, bright-black background, white text
 
 /// Returns GREY when the field is empty (None or "" or "--:--"),
 /// and RESET otherwise.

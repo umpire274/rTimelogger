@@ -52,7 +52,7 @@ impl AddLogic {
         // ------------------------------------------------
         if edit_mode {
             let pair_num = edit_pair
-                .ok_or_else(|| AppError::InvalidTime("Missing --pair when using --edit.".into()))?;
+                .ok_or_else(|| AppError::InvalidArgs("Missing --pair when using --edit.".into()))?;
 
             let (mut ev_in, mut ev_out) = load_pair_by_index(&pool.conn, &date, pair_num)?;
 
@@ -161,10 +161,51 @@ impl AddLogic {
             ));
         }
 
+        // ------------------------------------------------
+        // ✅ CASE HOLIDAY: allow --pos H without --in/--out
+        // ------------------------------------------------
+        if pos_final == Location::Holiday {
+            // Holiday è un marker di giornata: non accetto parametri temporali o lunch/work-gap
+            if start.is_some() || end.is_some() || lunch.is_some() || work_gap.is_some() {
+                return Err(AppError::InvalidArgs(
+                    "For --pos H (Holiday) do not specify --in, --out, --lunch or --work-gap."
+                        .into(),
+                ));
+            }
+
+            // Se ci sono già eventi quel giorno, non è coerente segnare ferie
+            if has_events {
+                return Err(AppError::InvalidArgs(
+                    "Cannot set Holiday on a date that already has events.".into(),
+                ));
+            }
+
+            // Inserisco un evento sentinella a mezzanotte con location Holiday.
+            // Uso EventType::In perché nel modello ci sono solo In/Out.
+            let holiday_time = NaiveTime::from_hms_opt(0, 0, 0)
+                .ok_or_else(|| AppError::Other("Invalid holiday time sentinel.".into()))?;
+
+            let ev_holiday = Event::new(
+                0,
+                date,
+                holiday_time,
+                EventType::In,
+                Location::Holiday,
+                Some(0),
+                false,
+            );
+
+            insert_event(&pool.conn, &ev_holiday)?;
+            crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
+
+            success(format!("Added HOLIDAY on {}.", date_str));
+            return Ok(());
+        }
+
         // CASE A: only lunch update
         if start.is_none() && end.is_none() && lunch.is_some() {
             if !has_events {
-                return Err(AppError::InvalidTime(
+                return Err(AppError::InvalidArgs(
                     "Cannot set lunch on a date with no events.".into(),
                 ));
             }
@@ -192,7 +233,7 @@ impl AddLogic {
 
         // CASE B: nothing to do
         if start.is_none() && end.is_none() {
-            return Err(AppError::InvalidTime(
+            return Err(AppError::InvalidArgs(
                 "Nothing to do: specify at least --in, --out or --lunch.".into(),
             ));
         }
@@ -293,7 +334,7 @@ impl AddLogic {
             return Ok(());
         }
 
-        Err(AppError::InvalidTime(
+        Err(AppError::InvalidArgs(
             "Unhandled combination of parameters.".into(),
         ))
     }

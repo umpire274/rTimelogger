@@ -6,13 +6,121 @@ use crate::db::queries::load_events_by_date;
 use crate::errors::{AppError, AppResult};
 use crate::models::day_summary::DaySummary;
 use crate::models::event::Event;
+use crate::models::location::Location;
 use crate::ui::messages::{info, warning};
 use crate::utils::date::get_day_position;
+use crate::utils::table::EVENTS_TABLE_WIDTH;
 use crate::utils::{colors, date, formatting, mins2readable};
 use chrono::{Datelike, NaiveDate};
 
+//
+// ───────────────────────────────────────────────────────────────────────────────
+// Local Enums and Layout
+// ───────────────────────────────────────────────────────────────────────────────
+//
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WeekdayMode {
+    None,
+    Short,
+    Medium,
+    Long,
+}
+
+fn weekday_mode(cfg: &Config) -> WeekdayMode {
+    match cfg.show_weekday.to_ascii_lowercase().as_str() {
+        "none" => WeekdayMode::None,
+        "short" => WeekdayMode::Short,
+        "medium" => WeekdayMode::Medium,
+        "long" => WeekdayMode::Long,
+        // fallback conservativo
+        _ => WeekdayMode::Medium,
+    }
+}
+
+fn weekday_type_char(mode: WeekdayMode) -> Option<char> {
+    match mode {
+        WeekdayMode::None => None,
+        WeekdayMode::Short => Some('s'),
+        WeekdayMode::Medium => Some('m'),
+        WeekdayMode::Long => Some('l'),
+    }
+}
+
+/// Nel compact: se weekday abilitato, forza sempre Short (2 lettere) per mantenere layout stabile.
+fn effective_weekday_mode(mode: WeekdayMode, compact: bool) -> WeekdayMode {
+    if !compact {
+        return mode;
+    }
+    match mode {
+        WeekdayMode::None => WeekdayMode::None,
+        _ => WeekdayMode::Short,
+    }
+}
+
+/// Larghezza della colonna DATE in base al weekday.
+/// - None:   "YYYY-MM-DD"               = 10
+/// - Short:  "YYYY-MM-DD (Fr)"          = 15
+/// - Medium: "YYYY-MM-DD (Fri)"         = 16
+/// - Long:   "YYYY-MM-DD (Wednesday)"   = 22 (max 9 chars weekday)
+fn date_col_width(mode: WeekdayMode) -> usize {
+    match mode {
+        WeekdayMode::None => 10,
+        WeekdayMode::Short => 15,
+        WeekdayMode::Medium => 16,
+        WeekdayMode::Long => 22,
+    }
+}
+
+// Column widths (daily standard table)
+const POS_W: usize = 16;
+const TIME_W: usize = 5; // IN / LNCH / OUT / TGT
+const DWORK_W: usize = 7;
+
+/// Daily table total width, computed from column widths.
+/// Format used:
+/// " {DATE} | {POSITION} | {IN} | {LNCH} | {OUT} | {TGT} | {ΔWORK}"
+fn daily_table_width(mode: WeekdayMode) -> usize {
+    let dw = date_col_width(mode);
+    // 1 leading space + cols + separators (" | " = 3 chars) between 7 columns
+    // Total = 1 + date + 3 + pos + 3 + in + 3 + lnch + 3 + out + 3 + tgt + 3 + dwork
+    1 + dw + 3 + POS_W + 3 + TIME_W + 3 + TIME_W + 3 + TIME_W + 3 + TIME_W + 3 + DWORK_W + 1
+}
+
+// Compact table widths
+const CPOS_W: usize = 12;
+const TRIPLE_W: usize = 21; // "IN / LNCH / OUT"
+const CTGT_W: usize = 5;
+const CDWORK_W: usize = 7;
+
+/// Compact table total width.
+/// Format used:
+/// "{DATE} | {POSITION} | {IN/LNCH/OUT} | {TGT} | {ΔWORK}"
+fn compact_table_width(mode: WeekdayMode) -> usize {
+    let dw = date_col_width(mode);
+    // date + 3 + pos + 3 + triple + 3 + tgt + 3 + dwork
+    dw + 3 + CPOS_W + 3 + TRIPLE_W + 3 + CTGT_W + 3 + CDWORK_W + 3
+}
+
+fn format_date_with_weekday(date: &NaiveDate, mode: WeekdayMode) -> String {
+    let date_str = date.to_string();
+    if let Some(ch) = weekday_type_char(mode) {
+        let wd = date::weekday_str(&date_str, ch);
+        format!("{} ({})", date_str, wd)
+    } else {
+        date_str
+    }
+}
+
+//
+// ───────────────────────────────────────────────────────────────────────────────
+// Public entry
+// ───────────────────────────────────────────────────────────────────────────────
+//
+
 pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
     if let Commands::List {
+        compact,
         period,
         now,
         details,
@@ -20,9 +128,17 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
         ..
     } = cmd
     {
-        let mut pool = DbPool::new(&cfg.database)?;
+        if *compact && *details {
+            return Err(AppError::InvalidArgs(
+                "--compact cannot be used together with --details.".into(),
+            ));
+        }
 
-        // 1️⃣ Determina le date
+        let mut pool = DbPool::new(&cfg.database)?;
+        let wd_mode_cfg = weekday_mode(cfg);
+        let wd_mode = effective_weekday_mode(wd_mode_cfg, *compact);
+
+        // 1️⃣ Determine dates
         let dates = if *now {
             vec![date::today()]
         } else {
@@ -34,7 +150,7 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
             return Ok(());
         }
 
-        // 2️⃣ Stampa intestazione se non in modalità --now
+        // 2️⃣ Header (only if not --now)
         if !*now {
             if period.is_some() {
                 print_header(period);
@@ -45,8 +161,12 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
 
         let mut total_surplus: i64 = 0;
         let mut any_output = false;
-        let mut last_month: Option<(i32, u32)> = None;
 
+        // Month separator state (only for daily summaries)
+        let mut last_month: Option<(i32, u32)> = None;
+        let mut printed_daily_header = false;
+
+        // EVENTS header if requested
         if *events_only && Event::has_events_for_dates(&mut pool, &dates)? {
             println!("EVENTS:");
             println!();
@@ -54,25 +174,36 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
                 " {:^17} | {:^4} | {:^12} | {:^16} | {:^6} | {:^4} | {:^8}",
                 "Date Time", "Type", "Lunch", "Position", "Source", "Pair", "Work Gap"
             );
-            println!("{:-<88}", "-");
+            println!("{:-<w$}", "-", w = EVENTS_TABLE_WIDTH);
         }
 
-        for d in dates {
-            let d_str = d.to_string();
-            let parsed_date = NaiveDate::parse_from_str(&d_str, "%Y-%m-%d")
-                .map_err(|_| AppError::InvalidDate(d_str))?;
+        for day in dates {
+            // Month separator (daily summaries only)
+            if !*events_only {
+                let current_month = (day.year(), day.month());
+                if let Some((ly, lm)) = last_month
+                    && (ly, lm) != current_month
+                {
+                    let twidth = if *compact {
+                        compact_table_width(wd_mode)
+                    } else {
+                        daily_table_width(wd_mode)
+                    };
+                    println!("{:-<w$}", "-", w = twidth);
 
-            // 🧨 Month separator
-            let current_month = (parsed_date.year(), parsed_date.month());
-            if let Some((ly, lm)) = last_month
-                && (ly, lm) != current_month
-            {
-                println!("{:>108}", "--------------------------");
+                    // reprint table header at month boundary
+                    if *compact {
+                        print_compact_header(wd_mode);
+                    } else {
+                        print_daily_table_header(wd_mode);
+                    }
+                    printed_daily_header = true;
+                }
+                last_month = Some(current_month);
             }
-            last_month = Some(current_month);
 
-            // 3️⃣ Load events for date
-            let events = load_events_by_date(&mut pool, &parsed_date)?;
+            // Load events
+            let events = load_events_by_date(&mut pool, &day)?;
             if events.is_empty() {
                 continue;
             }
@@ -82,20 +213,35 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
                 continue;
             }
 
-            // 4️⃣ Build summary
+            // Build summary
             let day_summary = Core::build_daily_summary(&events, cfg);
-
             if day_summary.timeline.pairs.is_empty() {
-                info(format!("No valid pairs for {}.", parsed_date));
+                info(format!("No valid pairs for {}.", day));
                 continue;
             }
 
-            // 5️⃣ Print daily row using timeline
-            if let Some(day_surplus) = print_daily_row(&parsed_date, &events, &day_summary, cfg) {
-                total_surplus += day_surplus;
+            // Print header once
+            if !printed_daily_header {
+                if *compact {
+                    print_compact_header(wd_mode);
+                } else {
+                    print_daily_table_header(wd_mode);
+                }
+                printed_daily_header = true;
             }
 
-            // 6️⃣ Optional details
+            // Print row
+            let day_surplus = if *compact {
+                print_daily_row_compact(&day, &events, &day_summary, cfg, wd_mode)
+            } else {
+                print_daily_row(&day, &events, &day_summary, cfg, wd_mode)
+            };
+
+            if let Some(v) = day_surplus {
+                total_surplus += v;
+            }
+
+            // Optional details (not allowed in compact)
             if *details && (*now || period.as_ref().is_some_and(|p| p.len() == 10)) {
                 print_details(&day_summary);
             }
@@ -103,17 +249,44 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
             any_output = true;
         }
 
-        // 7️⃣ Totale finale
+        // Footer total
         if any_output && !*events_only {
-            println!("{:>108}", "--------------------------");
+            let twidth = if *compact {
+                compact_table_width(wd_mode)
+            } else {
+                daily_table_width(wd_mode)
+            };
+            println!("{:-<w$}", "-", w = twidth);
 
             let color = colors::color_for_surplus(total_surplus);
-            let formatted = mins2readable(total_surplus, false, false);
+            let delta = format_delta_compact(total_surplus);
 
-            println!(
-                "{:>116}",
-                format!("Σ Total surplus: {}{}{}", color, formatted, colors::RESET)
+            // background (SECTION_BAR) only on label
+            let footer_plain = format!("Σ Total ΔWORK: {}", delta);
+            let prefix = formatting::right_pad_prefix(
+                twidth.saturating_sub(if *compact { 1 } else { 3 }),
+                &footer_plain,
             );
+
+            if *compact {
+                println!(
+                    "{}Σ Total ΔWORK: {}{}{}",
+                    prefix,
+                    color,
+                    delta,
+                    colors::RESET
+                );
+            } else {
+                println!(
+                    "{}{} Σ Total ΔWORK: {} {}{}{}",
+                    prefix,
+                    colors::SECTION_BAR, // background ON (label)
+                    colors::RESET,       // background OFF
+                    color,               // value color
+                    delta,               // value
+                    colors::RESET        // final reset
+                );
+            }
         }
 
         Ok(())
@@ -124,13 +297,11 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
 
 //
 // ───────────────────────────────────────────────────────────────────────────────
-// Helper: Resolve period → Vec<NaiveDate>
+// Period resolver
 // ───────────────────────────────────────────────────────────────────────────────
 //
 
 fn resolve_period(period: &Option<String>) -> AppResult<Vec<NaiveDate>> {
-    use crate::errors::AppError;
-
     if let Some(p) = period {
         if p == "all" {
             return date::generate_all_dates().map_err(AppError::InvalidDate);
@@ -165,13 +336,10 @@ fn print_header(period: &Option<String>) {
             ));
             return;
         }
+
         match p.len() {
-            4 => {
-                // header for year
-                info(format!("📅 Saved sessions for year {}\n", p));
-            }
+            4 => info(format!("📅 Saved sessions for year {}\n", p)),
             7 => {
-                // header for month
                 let parts: Vec<&str> = p.split('-').collect();
                 if parts.len() == 2 {
                     info(format!(
@@ -181,12 +349,8 @@ fn print_header(period: &Option<String>) {
                     ));
                 }
             }
-            10 => {
-                // header for single date
-                info(format!("📅 Saved session for date {}\n", p));
-            }
+            10 => info(format!("📅 Saved session for date {}\n", p)),
             15 => {
-                // header for period between two dates
                 let parts: Vec<&str> = p.split(':').collect();
                 if parts.len() == 2 {
                     info(format!(
@@ -199,9 +363,10 @@ fn print_header(period: &Option<String>) {
         }
     }
 }
+
 //
 // ───────────────────────────────────────────────────────────────────────────────
-// Modalità list --events
+// list --events
 // ───────────────────────────────────────────────────────────────────────────────
 //
 
@@ -209,28 +374,21 @@ fn print_raw_events(events: &[Event]) {
     let mut last_date: Option<String> = None;
 
     for ev in events {
-        //eprintln!("event: {:?}", ev);
         let lunch = colors::colorize_optional(&format!("{:>2} min", ev.lunch.unwrap_or(0)));
         let pos_label = ev.location.label();
         let pos_color = ev.location.color();
-        let pos_fmt = formatting::pad_right(pos_label, 16);
+        let pos_fmt = formatting::pad_right(pos_label, POS_W);
 
         let (dash, date_str) = if ev.kind.is_in() {
-            let current_date = ev.date_str(); // String stabile
-
+            let current_date = ev.date_str();
             match &last_date {
-                Some(d) if d == &current_date => {
-                    // stesso giorno → niente freccia, niente data
-                    (" ", " ".repeat(10))
-                }
+                Some(d) if d == &current_date => (" ", " ".repeat(10)),
                 _ => {
-                    // nuovo giorno → freccia + data
                     last_date = Some(current_date.clone());
                     ("→", current_date)
                 }
             }
         } else {
-            // OUT → mai freccia, mai data
             (" ", " ".repeat(10))
         };
 
@@ -252,95 +410,128 @@ fn print_raw_events(events: &[Event]) {
 
 //
 // ───────────────────────────────────────────────────────────────────────────────
-// Daily row (the core of the command)
+// Daily standard table
 // ───────────────────────────────────────────────────────────────────────────────
 //
+
+fn print_daily_table_header(wd_mode: WeekdayMode) {
+    let dw = date_col_width(wd_mode);
+    let twidth = daily_table_width(wd_mode);
+
+    println!(
+        " {:^dw$} | {:^16} | {:^5} | {:^5} | {:^5} | {:^5} | {:^7}",
+        "DATE",
+        "POSITION",
+        "IN",
+        "LNCH",
+        "OUT",
+        "TGT",
+        "ΔWORK",
+        dw = dw
+    );
+
+    println!("{:-<w$}", "-", w = twidth);
+}
 
 fn print_daily_row(
     date: &NaiveDate,
     events: &[Event],
     summary: &DaySummary,
-    cfg: &Config,
+    _cfg: &Config,
+    wd_mode: WeekdayMode,
 ) -> Option<i64> {
     let timeline = &summary.timeline;
     if timeline.pairs.is_empty() {
         return None;
     }
 
-    let first_in = timeline.pairs[0].in_event.timestamp();
-    let first_in_str = first_in.format("%H:%M").to_string();
-
-    let last_out_opt = timeline
-        .pairs
-        .iter()
-        .filter_map(|p| p.out_event.as_ref())
-        .map(|ev| ev.timestamp())
-        .next_back();
-
-    // Position of the day
     let day_position = get_day_position(timeline);
+    let date_str = format_date_with_weekday(date, wd_mode);
+    let dw = date_col_width(wd_mode);
 
-    // Lunch total
-    let mut lunch_total: i64 = timeline.pairs.iter().map(|p| p.lunch_minutes).sum();
-    if lunch_total == 0 {
-        lunch_total = events.iter().map(|ev| ev.lunch.unwrap_or(0) as i64).sum();
-    }
-
-    // Expected exit timestamp: first_in + expected_minutes (min_work_duration + lunch)
-    let expected_exit = first_in + chrono::Duration::minutes(summary.expected);
-    let expected_exit_str = expected_exit.format("%H:%M").to_string();
-
-    // Weekday formatting
-    let wd_type = cfg
-        .show_weekday
-        .chars()
-        .next()
-        .unwrap_or('m')
-        .to_ascii_lowercase();
-    let weekday = date::weekday_str(&date.to_string(), wd_type);
-
-    let date_shown = format!("{} ({})", date, weekday);
     let pos_label = day_position.label();
     let pos_color = day_position.color();
-    let pos_fmt = formatting::pad_right(pos_label, 16);
+    let pos_fmt = formatting::pad_right(pos_label, POS_W);
 
-    // Lunch
-    let lunch_str = if lunch_total > 0 {
-        crate::utils::time::format_minutes(lunch_total)
-    } else {
-        "--:--".to_string()
-    };
-    let lunch_c = colors::colorize_optional(&lunch_str);
+    // Defaults (Holiday / N/A)
+    let grey_time = format!("{}--:--{}", colors::GREY, colors::RESET);
+    let mut first_in_str = grey_time.clone();
+    let mut lunch_c = grey_time.clone();
+    let mut end_c = grey_time.clone();
+    let mut expected_exit_str = grey_time.clone();
 
-    // End
-    let end_str = last_out_opt
-        .map(|ts| ts.format("%H:%M").to_string())
-        .unwrap_or_else(|| "--:--".to_string());
-    let end_c = colors::colorize_optional(&end_str);
+    // Defaults for surplus
+    let mut surplus_opt: Option<i64> = Some(0); // Holiday contributes 0
+    let mut surplus_display = "-".to_string();
+    let mut surplus_color = colors::GREY;
 
-    // Surplus
-    let non_work_gap_minutes: i64 = timeline
-        .gaps
-        .iter()
-        .filter(|g| !g.is_work_gap)
-        .map(|g| g.duration_minutes)
-        .sum();
+    if day_position != Location::Holiday {
+        let first_in = timeline.pairs[0].in_event.timestamp();
+        first_in_str = first_in.format("%H:%M").to_string();
 
-    let surplus_opt =
-        last_out_opt.map(|out| (out - expected_exit).num_minutes() - non_work_gap_minutes);
+        let last_out_opt = timeline
+            .pairs
+            .iter()
+            .filter_map(|p| p.out_event.as_ref())
+            .map(|ev| ev.timestamp())
+            .next_back();
 
-    let (surplus_str, surplus_color) = match surplus_opt {
-        None => ("-".to_string(), colors::GREY),
-        Some(0) => ("0".to_string(), colors::GREY),
-        Some(v) => {
-            let color = colors::color_for_surplus(v);
-            (format!("{:+}", v), color)
+        // Lunch total
+        let mut lunch_total: i64 = timeline.pairs.iter().map(|p| p.lunch_minutes).sum();
+        if lunch_total == 0 {
+            lunch_total = events.iter().map(|ev| ev.lunch.unwrap_or(0) as i64).sum();
         }
-    };
+
+        // Target end
+        let expected_exit = first_in + chrono::Duration::minutes(summary.expected);
+        expected_exit_str = expected_exit.format("%H:%M").to_string();
+
+        // Lunch
+        let lunch_str = if lunch_total > 0 {
+            crate::utils::time::format_minutes(lunch_total)
+        } else {
+            "--:--".to_string()
+        };
+        lunch_c = colors::colorize_optional(&lunch_str);
+
+        // End
+        let end_str = last_out_opt
+            .map(|ts| ts.format("%H:%M").to_string())
+            .unwrap_or_else(|| "--:--".to_string());
+        end_c = colors::colorize_optional(&end_str);
+
+        // Surplus (worked)
+        let non_work_gap_minutes: i64 = timeline
+            .gaps
+            .iter()
+            .filter(|g| !g.is_work_gap)
+            .map(|g| g.duration_minutes)
+            .sum();
+
+        surplus_opt =
+            last_out_opt.map(|out| (out - expected_exit).num_minutes() - non_work_gap_minutes);
+
+        match surplus_opt {
+            None => {
+                surplus_display = "-".to_string();
+                surplus_color = colors::GREY;
+            }
+            Some(0) => {
+                surplus_display = "0".to_string();
+                surplus_color = colors::GREY;
+            }
+            Some(v) => {
+                let abs = mins2readable(v.abs(), false, false); // "02h 04m"
+                let compact = abs.replace(' ', ""); // "02h04m"
+                surplus_display = format!("{}{}", if v < 0 { "-" } else { "+" }, compact);
+                surplus_color = colors::color_for_surplus(v);
+            }
+        }
+    }
 
     println!(
-        "{} | {}{}\x1b[0m | Start {:^5} | Lunch {:^5} | End {:^5} | Expected {:^5} | Surplus {}{:>5} min\x1b[0m",
-        date_shown,
+        " {:<dw$} | {}{}\x1b[0m | {:^5} | {:^5} | {:^5} | {:^5} | {}{:>7}\x1b[0m",
+        date_str,
         pos_color,
         pos_fmt,
         first_in_str,
@@ -348,7 +539,8 @@ fn print_daily_row(
         end_c,
         expected_exit_str,
         surplus_color,
-        surplus_str,
+        surplus_display,
+        dw = dw
     );
 
     surplus_opt
@@ -361,35 +553,183 @@ fn print_daily_row(
 //
 
 fn print_details(summary: &DaySummary) {
-    println!("    Details:");
+    if summary.timeline.pairs.is_empty() {
+        return;
+    }
+
+    println!();
+    println!("    {} DETAILS {}", colors::SECTION_BAR, colors::RESET);
+    println!(
+        "    {:^4} | {:^5} | {:^5} | {:^6} | {:^5} | {:^16} | {:^2}",
+        "PAIR", "IN", "OUT", "WORKED", "LUNCH", "POSITION", "WG"
+    );
+    println!("    {:-<72}", "-");
+
     for (idx, p) in summary.timeline.pairs.iter().enumerate() {
-        let in_t = p.in_event.timestamp().format("%H:%M");
-        let in_c = colors::colorize_in_out(&in_t.to_string(), true);
+        let in_t = p.in_event.timestamp().format("%H:%M").to_string();
+        let in_c = colors::colorize_in_out(&in_t, true);
 
         let out_t = p
             .out_event
             .as_ref()
             .map(|ev| ev.timestamp().format("%H:%M").to_string())
-            .unwrap_or("--:--".to_string());
+            .unwrap_or_else(|| "--:--".to_string());
         let out_c = colors::colorize_in_out(&out_t, false);
 
-        let worked = colors::colorize_optional(&mins2readable(p.duration_minutes, false, false));
-        let lunch = colors::colorize_optional(&format!("{:>2} min", p.lunch_minutes));
+        let worked_raw = mins2readable(p.duration_minutes, false, false);
+        let worked_compact = worked_raw.replace(' ', "");
+        let worked_c = colors::colorize_optional(&worked_compact);
+
+        let lunch_compact = format!("{:>2}m", p.lunch_minutes);
+        let lunch_c = colors::colorize_optional(&lunch_compact);
+
         let pos_label = p.position.label();
         let pos_color = p.position.color();
-        let pos_fmt = formatting::pad_right(pos_label, 16);
+        let pos_fmt = formatting::pad_right(pos_label, POS_W);
+
+        let wg_str = if p.work_gap { "Y" } else { "" };
 
         println!(
-            "      Pair {:>2}: IN {:^5} | OUT {:^5} | worked {:^7} | lunch {} | {}{}\x1b[0m | {}",
+            "    {:>4} | {:^5} | {:^5} | {:^6} | {:^5} | {}{}\x1b[0m | {:^2}",
             idx + 1,
             in_c,
             out_c,
-            worked,
-            lunch,
+            worked_c,
+            lunch_c,
             pos_color,
             pos_fmt,
-            if p.work_gap { "YES" } else { "" }
+            wg_str
         );
     }
+
     println!();
+}
+
+//
+// ───────────────────────────────────────────────────────────────────────────────
+// Compact table
+// ───────────────────────────────────────────────────────────────────────────────
+//
+
+fn print_compact_header(wd_mode: WeekdayMode) {
+    let dw = date_col_width(wd_mode);
+    let twidth = compact_table_width(wd_mode);
+
+    println!(
+        "{:^dw$} | {:^12} | {:^21} | {:^5} | {:^7}",
+        "DATE",
+        "POSITION",
+        "IN / LNCH / OUT",
+        "TGT",
+        "ΔWORK",
+        dw = dw
+    );
+
+    println!("{:-<w$}", "-", w = twidth);
+}
+
+fn format_delta_compact(minutes: i64) -> String {
+    let abs = mins2readable(minutes.abs(), false, true); // già compatto
+    format!("{}{}", if minutes < 0 { "-" } else { "+" }, abs)
+}
+
+fn print_daily_row_compact(
+    date: &NaiveDate,
+    events: &[Event],
+    summary: &DaySummary,
+    _cfg: &Config,
+    wd_mode: WeekdayMode,
+) -> Option<i64> {
+    let timeline = &summary.timeline;
+    if timeline.pairs.is_empty() {
+        return None;
+    }
+
+    let dw = date_col_width(wd_mode);
+    let date_str = format_date_with_weekday(date, wd_mode);
+
+    let day_position = get_day_position(timeline);
+    let pos_label = day_position.label();
+    let pos_color = day_position.color();
+
+    if day_position == Location::Holiday {
+        println!(
+            "{:<dw$} | {}{:<12}{}\x1b[0m | {:<21} | {:^5} | {}Δ -{}\x1b[0m",
+            date_str,
+            pos_color,
+            pos_label,
+            colors::RESET,
+            format!("{}--:-- / --:-- / --:--{}", colors::GREY, colors::RESET),
+            format!("{}--:--{}", colors::GREY, colors::RESET),
+            colors::GREY,
+            colors::RESET,
+            dw = dw
+        );
+        return Some(0);
+    }
+
+    let first_in = timeline.pairs[0].in_event.timestamp();
+    let first_in_str = first_in.format("%H:%M").to_string();
+
+    let last_out_opt = timeline
+        .pairs
+        .iter()
+        .filter_map(|p| p.out_event.as_ref())
+        .map(|ev| ev.timestamp())
+        .next_back();
+
+    let end_str = last_out_opt
+        .map(|ts| ts.format("%H:%M").to_string())
+        .unwrap_or_else(|| "--:--".to_string());
+
+    let mut lunch_total: i64 = timeline.pairs.iter().map(|p| p.lunch_minutes).sum();
+    if lunch_total == 0 {
+        lunch_total = events.iter().map(|ev| ev.lunch.unwrap_or(0) as i64).sum();
+    }
+    let lunch_str = if lunch_total > 0 {
+        crate::utils::time::format_minutes(lunch_total)
+    } else {
+        "--:--".to_string()
+    };
+
+    let expected_exit = first_in + chrono::Duration::minutes(summary.expected);
+    let target_end_str = expected_exit.format("%H:%M").to_string();
+
+    let non_work_gap_minutes: i64 = timeline
+        .gaps
+        .iter()
+        .filter(|g| !g.is_work_gap)
+        .map(|g| g.duration_minutes)
+        .sum();
+
+    let surplus_opt =
+        last_out_opt.map(|out| (out - expected_exit).num_minutes() - non_work_gap_minutes);
+
+    let (delta_str, delta_color) = match surplus_opt {
+        None => ("-".to_string(), colors::GREY),
+        Some(0) => ("0".to_string(), colors::GREY),
+        Some(v) => {
+            let abs = mins2readable(v.abs(), false, true);
+            let sign = if v < 0 { "-" } else { "+" };
+            (format!("{}{}", sign, abs), colors::color_for_surplus(v))
+        }
+    };
+
+    let times_string = format!("{} / {} / {}", first_in_str, lunch_str, end_str);
+    let delta_value = format!("Δ {}", delta_str);
+    println!(
+        "{:<dw$} | {}{:<12}{}\x1b[0m | {:<21} | {:^5} | {}{}{}\x1b[0m",
+        date_str,
+        pos_color,
+        pos_label,
+        colors::RESET,
+        times_string,
+        target_end_str,
+        delta_color,
+        delta_value,
+        colors::RESET,
+        dw = dw
+    );
+
+    surplus_opt
 }

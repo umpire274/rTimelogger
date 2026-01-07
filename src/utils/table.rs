@@ -10,6 +10,14 @@ pub struct Table {
     pub rows: Vec<Vec<String>>,
 }
 
+pub const DAILY_TABLE_WIDTH: usize = 80;
+pub const DAILY_TABLE_NO_WEEKDAY_WIDTH: usize = 74;
+pub const DAILY_TABLE_WEEKDAYS_SHORT_WIDTH: usize = 79;
+pub const DAILY_TABLE_WEEKDAYS_MEDIUM_WIDTH: usize = 80;
+pub const DAILY_TABLE_WEEKDAYS_LONG_WIDTH: usize = 86;
+pub const DAILY_TABLE_COMPACT_WIDTH: usize = 75;
+pub const EVENTS_TABLE_WIDTH: usize = 88;
+
 impl Table {
     pub fn new(columns: Vec<Column>) -> Self {
         Self {

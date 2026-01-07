@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.8.1] - 2026-01-07
+
+### ✨ New
+
+- Added list --compact output mode for a concise, single-line daily overview.
+- Introduced unified date column format YYYY-MM-DD (WD) with configurable weekday length.
+- Improved visual hierarchy for list --details with highlighted DETAILS section header.
+- Added dynamic table width handling based on weekday display mode (None, Short, Medium, Long).
+
+### 🔧 Improvements
+
+- Refactored list command rendering logic for better layout consistency and maintainability.
+- Harmonized table headers and footers across standard and compact list views.
+- Improved footer alignment using dynamic table width calculation.
+- Clarified labels:
+    - Expected → Target end
+    - Surplus → ΔWORK
+- Enhanced compact delta formatting (e.g. +02h04m).
+- Automatic re-print of table headers when switching month during period listing.
+- Improved holiday visualization:
+    - All time fields shown as --:--
+    - Greyed output
+    - Neutral contribution to totals.
+
+### 🐞 Fixes
+
+- Fixed incorrect handling of --pos h (Holiday) requiring --in/--out.
+- Fixed misleading error classification (InvalidTime → InvalidArgs) for invalid CLI combinations.
+- Fixed surplus calculation edge cases when work gaps are present.
+- Fixed weekday width/layout inconsistencies across different display modes.
+- Removed unused variables and eliminated compiler warnings in list.rs.
+
+### 🧹 Internal
+
+- Introduced WeekdayMode enum for explicit weekday rendering control.
+- Centralized table width logic via utils::table constants.
+- Simplified footer formatting and alignment logic.
+- Improved separation between presentation logic and data computation.
+
+---
+
 ## [v0.8.0] - 2025-12-18
 
 ### 🚀 Stable release — Timeline & Work Gap engine
