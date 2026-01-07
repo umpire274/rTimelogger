@@ -22,6 +22,15 @@
 
 ---
 
+## [v0.8.0] - 2025-12-18
+
+### 🚀 Stable release — Timeline & Work Gap engine
+
+This release marks the **first stable 0.8.x version** and concludes the alpha/beta cycle with a fully consolidated
+timeline engine, correct multi-pair handling, and a refined CLI experience.
+
+---
+
 ### ✨ Highlights
 
 - **Stable multi-pair daily model**
