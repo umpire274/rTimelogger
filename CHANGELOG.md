@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1] - 2026-01-07
+
+### Fixed
+
+- `add`: allow `--pos H` (Holiday) without requiring `--in`/`--out`.
+
+---
+
 ## [v0.8.0] - 2025-12-18
 
 ### 🚀 Stable release — Timeline & Work Gap engine

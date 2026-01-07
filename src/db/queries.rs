@@ -233,11 +233,38 @@ pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResu
         return Ok(()); // nothing to do
     }
 
+    // ------------------------------------------------
+    // ✅ HOLIDAY handling (pair is NOT NULL, default 0)
+    // ------------------------------------------------
+    let has_holiday = events.iter().any(|e| e.location == Location::Holiday);
+    if has_holiday {
+        // Se Holiday coesiste con altri eventi, giornata incoerente
+        if events.len() > 1 {
+            return Err(AppError::InvalidTime(format!(
+                "Invalid sequence on {}: Holiday cannot coexist with IN/OUT events.",
+                date_str
+            )));
+        }
+
+        // Solo Holiday marker: forza pair=0 e termina
+        conn.execute(
+            "UPDATE events SET pair = 0 WHERE date = ?1",
+            params![date_str],
+        )?;
+        return Ok(());
+    }
+
     // 2) Recalculate pairs with **strict validation**
     let mut current_pair = 1;
     let mut open_in: Option<i32> = None; // stores ID of last IN without OUT
 
     for ev in &events {
+        // (Ridondante dopo il guard sopra, ma mantiene robustezza futura)
+        if ev.location == Location::Holiday {
+            conn.execute("UPDATE events SET pair = 0 WHERE id = ?1", params![ev.id])?;
+            continue;
+        }
+
         if ev.kind.is_in() {
             //
             // CASE: IN event
@@ -280,10 +307,6 @@ pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResu
             current_pair += 1;
         }
     }
-
-    // If after processing all events an IN is left open → it's allowed
-    // because user may not have entered OUT yet (ongoing workday)
-    // BUT the next IN will be rejected until OUT is inserted.
 
     Ok(())
 }

@@ -78,10 +78,10 @@ pub enum Commands {
         /// Date of the event (YYYY-MM-DD)
         date: String,
 
-        /// Position (O = Office, R = Remote, H = Home, C = Client, M = Mixed)
+        /// Position (O = Office, R = Remote, H = Holiday, C = Client, M = Mixed)
         #[arg(
             long = "pos",
-            help = "Work position: O=Office, R=Remote, H=Home, C=Client, M=Mixed"
+            help = "Work position: O=Office, R=Remote, H=Holiday, C=Client, M=Mixed"
         )]
         pos: Option<String>,
 
