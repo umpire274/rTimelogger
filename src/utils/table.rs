@@ -10,6 +10,9 @@ pub struct Table {
     pub rows: Vec<Vec<String>>,
 }
 
+pub const DAILY_TABLE_WIDTH: usize = 78;
+pub const EVENTS_TABLE_WIDTH: usize = 88;
+
 impl Table {
     pub fn new(columns: Vec<Column>) -> Self {
         Self {

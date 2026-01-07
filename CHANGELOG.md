@@ -2,19 +2,23 @@
 
 ## [0.8.1] - 2026-01-07
 
+### Added
+
+- `add`: support for **Holiday day marker** using `--pos H`, without requiring `--in` or `--out`.
+
 ### Fixed
 
-- `add`: allow `--pos H` (Holiday) as a day marker without requiring `--in` or `--out`.
-- Improved CLI validation errors by distinguishing invalid arguments from time parsing errors.
+- `add`: improved validation logic for argument combinations involving `--pos H`.
+- `list`: correct handling of Holiday days in daily summaries (no times, no surplus).
+- `list`: prevent Holiday entries from affecting pairing and surplus calculations.
 
----
+### Changed
 
-## [v0.8.0] - 2025-12-18
-
-### 🚀 Stable release — Timeline & Work Gap engine
-
-This release marks the **first stable 0.8.x version** and concludes the alpha/beta cycle with a fully consolidated
-timeline engine, correct multi-pair handling, and a refined CLI experience.
+- `list`: redesigned daily summary output with a compact tabular layout.
+- `list`: clarified `Expected` value as **Target end** (planned exit time).
+- `list --details`: replaced verbose output with a structured table for IN/OUT pairs.
+- `list`: added section headers and harmonized footer styling.
+- CLI error handling: introduced `InvalidArgs` to distinguish argument validation errors from parsing errors.
 
 ---
 
