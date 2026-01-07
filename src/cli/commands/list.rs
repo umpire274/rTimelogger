@@ -465,7 +465,7 @@ fn print_daily_row(
     let mut surplus_display = "-".to_string();
     let mut surplus_color = colors::GREY;
 
-    if day_position != Location::Holiday {
+    if day_position != Location::Holiday && day_position != Location::NationalHoliday {
         let first_in = timeline.pairs[0].in_event.timestamp();
         first_in_str = first_in.format("%H:%M").to_string();
 
@@ -652,7 +652,7 @@ fn print_daily_row_compact(
     let pos_label = day_position.label();
     let pos_color = day_position.color();
 
-    if day_position == Location::Holiday {
+    if day_position == Location::Holiday || day_position == Location::NationalHoliday {
         println!(
             "{:<dw$} | {}{:<12}{}\x1b[0m | {:<21} | {:^5} | {}Δ -{}\x1b[0m",
             date_str,
