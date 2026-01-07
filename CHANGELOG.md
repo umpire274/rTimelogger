@@ -4,7 +4,8 @@
 
 ### Fixed
 
-- `add`: allow `--pos H` (Holiday) without requiring `--in`/`--out`.
+- `add`: allow `--pos H` (Holiday) as a day marker without requiring `--in` or `--out`.
+- Improved CLI validation errors by distinguishing invalid arguments from time parsing errors.
 
 ---
 

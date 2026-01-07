@@ -216,7 +216,6 @@ pub fn update_event(conn: &Connection, ev: &Event) -> AppResult<()> {
 pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResult<()> {
     let date_str = date.format("%Y-%m-%d").to_string();
 
-    // 1) Load events ordered by time
     let mut stmt = conn.prepare(
         "SELECT * FROM events
          WHERE date = ?1
@@ -230,15 +229,12 @@ pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResu
     }
 
     if events.is_empty() {
-        return Ok(()); // nothing to do
+        return Ok(());
     }
 
-    // ------------------------------------------------
-    // ✅ HOLIDAY handling (pair is NOT NULL, default 0)
-    // ------------------------------------------------
+    // ✅ Holiday marker handling
     let has_holiday = events.iter().any(|e| e.location == Location::Holiday);
     if has_holiday {
-        // Se Holiday coesiste con altri eventi, giornata incoerente
         if events.len() > 1 {
             return Err(AppError::InvalidTime(format!(
                 "Invalid sequence on {}: Holiday cannot coexist with IN/OUT events.",
@@ -246,7 +242,6 @@ pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResu
             )));
         }
 
-        // Solo Holiday marker: forza pair=0 e termina
         conn.execute(
             "UPDATE events SET pair = 0 WHERE date = ?1",
             params![date_str],
@@ -254,30 +249,18 @@ pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResu
         return Ok(());
     }
 
-    // 2) Recalculate pairs with **strict validation**
     let mut current_pair = 1;
-    let mut open_in: Option<i32> = None; // stores ID of last IN without OUT
+    let mut open_in: Option<i32> = None;
 
     for ev in &events {
-        // (Ridondante dopo il guard sopra, ma mantiene robustezza futura)
-        if ev.location == Location::Holiday {
-            conn.execute("UPDATE events SET pair = 0 WHERE id = ?1", params![ev.id])?;
-            continue;
-        }
-
         if ev.kind.is_in() {
-            //
-            // CASE: IN event
-            //
             if open_in.is_some() {
-                // Found IN while previous IN has no OUT → INVALID
                 return Err(AppError::InvalidTime(format!(
                     "Invalid sequence on {}: Found IN at {} but previous pair {} has no OUT.",
                     date_str, ev.time, current_pair
                 )));
             }
 
-            // Assign IN to the current pair
             conn.execute(
                 "UPDATE events SET pair = ?1 WHERE id = ?2",
                 params![current_pair, ev.id],
@@ -285,24 +268,18 @@ pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResu
 
             open_in = Some(ev.id);
         } else if ev.kind.is_out() {
-            //
-            // CASE: OUT event
-            //
             if open_in.is_none() {
-                // Found OUT without IN → INVALID
                 return Err(AppError::InvalidTime(format!(
                     "Invalid sequence on {}: Found OUT at {} without matching IN.",
                     date_str, ev.time
                 )));
             }
 
-            // Assign OUT to the same pair
             conn.execute(
                 "UPDATE events SET pair = ?1 WHERE id = ?2",
                 params![current_pair, ev.id],
             )?;
 
-            // Close the pair and increment
             open_in = None;
             current_pair += 1;
         }

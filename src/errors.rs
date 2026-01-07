@@ -43,6 +43,9 @@ pub enum AppError {
     // ---------------------------
     // Logic errors
     // ---------------------------
+    #[error("Invalid arguments: {0}")]
+    InvalidArgs(String),
+
     #[error("No events found for date {0}")]
     NoEventsForDate(String),
 
