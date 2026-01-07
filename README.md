@@ -14,75 +14,22 @@ and computes **expected exit time** and **daily surplus** accurately.
 
 ---
 
-## 🚀 What’s new in **v0.8.0**
+## 🚀 What’s new in **v0.8.2**
 
-Version **0.8.0** is the first **stable release** based on the new **timeline engine**.
+### 🗄️ Database migration
 
-### ✅ Timeline engine (stable)
+Starting from **v0.8.2**, rTimelogger automatically migrates the database schema to support the new `National holiday`
+position.
 
-* Unlimited **IN / OUT pairs per day**
-* Deterministic reconstruction:
-  **events → timeline → pairs**
-* Correct handling of:
+- The migration extends the `events.position` CHECK constraint
+- The migration is **idempotent** (no changes are applied if the schema is already up to date)
+- No manual action is required
 
-    * lunch breaks
-    * working gaps
-    * multi-position days
-* Legacy `work_sessions` logic fully retired
+### 🧭 Notes
 
----
-
-### 🔗 Working gap support
-
-Time **between pairs** can be explicitly controlled:
-
-* `--work-gap` → gap counts as working time
-* `--no-work-gap` → gap does **not** count as working time
-
-Features:
-
-* Stored in the database
-* Editable retroactively
-* Fully reflected in:
-
-    * worked time
-    * expected exit
-    * surplus
-
-Visual indicators:
-
-* 🔗 working gap
-* ✂️ non-working gap
-
----
-
-### 🧮 Accurate calculations
-
-* Worked time:
-
-    * sum of all pairs
-    * minus non-working gaps
-    * plus working gaps only when marked
-* Expected exit:
-
-    * based on first IN
-    * configured minimum working time
-    * lunch rules and lunch window
-* Surplus is correct in **all multi-pair scenarios**
-
----
-
-### 🧠 Consistency improvements
-
-* `OUT` events inherit position from `IN` when `--pos` is omitted
-* Pair details show the **actual position of each pair**
-* Clean event listing:
-
-    * no duplicated dates
-    * aligned output
-* Unified CLI message system:
-
-    * ℹ️ info · ⚠️ warning · ❌ error · ✅ success
+- Holiday should be used for personal leave days
+- National holiday should be used for public holidays defined by law or company calendar
+- Future versions may introduce calendar-based automation for national holidays
 
 ---
 
@@ -94,6 +41,7 @@ Visual indicators:
     * `O` Office
     * `R` Remote
     * `C` Client / On-site
+    * `N` National holiday
     * `H` Holiday
     * `M` Mixed
 * Automatic calculation of:
@@ -187,7 +135,8 @@ sudo mv rtimelogger /usr/local/bin/
 ### 🪟 Windows
 
 Download the prebuilt zip file, extract it, and move `rtimelogger.exe` to a directory in your `PATH`, e.g.,
-`C:\Windows\System32\` or create a dedicated folder like `C:\Program Files\rtimelogger\` and add it to your system `PATH`.
+`C:\Windows\System32\` or create a dedicated folder like `C:\Program Files\rtimelogger\` and add it to your system
+`PATH`.
 
 ---
 
@@ -205,6 +154,7 @@ Example `rtimelogger.conf`:
 database: /home/user/.rtimelogger/rtimelogger.sqlite
 default_position: O
 min_work_duration: 8h
+lunch_window: 12:30-14:00
 min_duration_lunch_break: 30
 max_duration_lunch_break: 90
 separator_char: "-"
@@ -251,6 +201,69 @@ rtimelogger add 2025-12-15 --edit --pair 1 --out 18:00
 rtimelogger add 2025-12-15 --out 10:30 --work-gap
 rtimelogger add 2025-12-15 --edit --pair 2 --no-work-gap
 ```
+
+### 📌 Day positions
+
+rTimelogger supports multiple day positions to describe how a working day (or non-working day) is classified.
+
+**Supported positions**
+
+| Code | Name             | Description                                                   |
+|------|------------------|---------------------------------------------------------------|
+| `O`  | Office           | Regular office working day                                    |
+| `R`  | Remote           | Remote working day                                            |
+| `C`  | On-site          | Working day at customer site                                  |
+| `M`  | Mixed            | Mixed working locations                                       |
+| `H`  | Holiday          | Personal holiday (counts against personal leave allowance)    |
+| `N`  | National holiday | Public holiday (does **not** affect personal leave allowance) |
+
+### ➕ Adding a national holiday
+
+To mark a **public/national holiday**, use the `add` command with the national position.
+
+```bash
+rtimelogger add 2025-12-25 --pos n
+```
+
+or
+
+```bash
+rtimelogger add 2025-12-25 --pos national
+```
+
+**Behavior**
+
+- No `--in`, `--out`, `--lunch`, or `--work-gap` parameters are allowed
+- The day is recorded as a non-working public holiday
+- The day does not contribute to worked time
+- The day does not reduce personal holiday allowance
+
+### 📋 List output behavior
+
+**National holiday days**
+
+In both standard and compact list views:
+
+- All time-related fields are displayed as `--:--`
+- Target end (`TGT`) is not computed
+- Worked delta (`ΔWORK`) is neutral (`-`)
+- The day is clearly labeled as **National holiday**
+
+Example:
+
+```text
+2025-12-25 (Thu) | National holiday | --:-- | --:-- | --:-- | --:-- | -
+```
+
+### ⚖️ Holiday vs National holiday
+
+| Aspect                   | Holiday (`H`) | National holiday (`N`) |
+|--------------------------|---------------|------------------------|
+| Working day              | ❌             | ❌                      |
+| Counts as personal leave | ✅             | ❌                      |
+| Expected time            | ❌             | ❌                      |
+| ΔWORK contribution       | ❌             | ❌                      |
+| Requires time entries    | ❌             | ❌                      |
 
 ---
 
@@ -417,6 +430,7 @@ The total accounts for:
 ```bash
 rtimelogger list --period 2025-12 --json
 ```
+
 Outputs the data in JSON format for easy integration with other tools or scripts.
 
 ---

@@ -164,12 +164,11 @@ impl AddLogic {
         // ------------------------------------------------
         // ✅ CASE HOLIDAY: allow --pos H without --in/--out
         // ------------------------------------------------
-        if pos_final == Location::Holiday {
+        if pos_final == Location::Holiday || pos_final == Location::NationalHoliday {
             // Holiday è un marker di giornata: non accetto parametri temporali o lunch/work-gap
             if start.is_some() || end.is_some() || lunch.is_some() || work_gap.is_some() {
                 return Err(AppError::InvalidArgs(
-                    "For --pos H (Holiday) do not specify --in, --out, --lunch or --work-gap."
-                        .into(),
+                    "For holiday days do not specify time-related arguments.".into(),
                 ));
             }
 
@@ -190,7 +189,7 @@ impl AddLogic {
                 date,
                 holiday_time,
                 EventType::In,
-                Location::Holiday,
+                pos_final,
                 Some(0),
                 false,
             );
@@ -198,7 +197,11 @@ impl AddLogic {
             insert_event(&pool.conn, &ev_holiday)?;
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
-            success(format!("Added HOLIDAY on {}.", date_str));
+            success(match pos_final {
+                Location::Holiday => format!("Added HOLIDAY on {}.", date),
+                Location::NationalHoliday => format!("Added NATIONAL HOLIDAY on {}.", date),
+                _ => unreachable!(),
+            });
             return Ok(());
         }
 

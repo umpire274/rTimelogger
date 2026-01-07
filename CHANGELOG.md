@@ -1,5 +1,31 @@
 # Changelog
 
+
+## [0.8.2] — 2026-01-08
+
+### ✨ Added
+
+- Added a new day position **National holiday** (**N**) to represent public holidays that do not affect personal holiday allowance. 
+- Introduced support for `--pos n` / `--pos national` in the `add` command to mark national holidays. 
+- Added idempotent database migration to extend the `events.position` CHECK constraint with the new `N` value.
+
+### 🧠 Changed
+
+- Updated daily and compact list views to properly display **National holiday** days with neutral time and ΔWORK values. 
+- Improved semantic distinction between **Holiday** (personal leave) and **National holiday** (public holiday) in reports and summaries.
+
+### 🐞 Fixes
+
+- Ensured database migrations safely no-op when the schema is already aligned. 
+- Fixed SQL escaping issues in migration logging statements.
+
+### 🧹 Internal
+
+- Extended Location enum and related parsing/formatting utilities. 
+- Refined migration logging for better traceability and robustness.
+
+---
+
 ## [0.8.1] - 2026-01-07
 
 ### ✨ New

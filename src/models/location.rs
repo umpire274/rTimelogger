@@ -2,11 +2,12 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Location {
-    Office,  // O
-    Remote,  // R
-    Holiday, // H
-    OnSite,  // C (Customer)
-    Mixed,   // M
+    Office,          // O
+    Remote,          // R
+    Holiday,         // H
+    NationalHoliday, // N
+    OnSite,          // C (Customer)
+    Mixed,           // M
 }
 
 impl Location {
@@ -15,6 +16,7 @@ impl Location {
             Location::Office => "O",
             Location::Remote => "R",
             Location::Holiday => "H",
+            Location::NationalHoliday => "N",
             Location::OnSite => "C",
             Location::Mixed => "M",
         }
@@ -31,6 +33,7 @@ impl Location {
             "O" => Some(Location::Office),
             "R" => Some(Location::Remote),
             "H" => Some(Location::Holiday),
+            "N" => Some(Location::NationalHoliday),
             "C" => Some(Location::OnSite),
             "M" => Some(Location::Mixed),
             _ => None,
@@ -48,6 +51,7 @@ impl Location {
             Location::Office => "Office",
             Location::Remote => "Remote",
             Location::Holiday => "Holiday",
+            Location::NationalHoliday => "National Holiday",
             Location::OnSite => "On-site (Client)",
             Location::Mixed => "Mixed",
         }
@@ -56,11 +60,12 @@ impl Location {
     /// ANSI color code used when printing in list mode
     pub fn color(&self) -> &'static str {
         match self {
-            Location::Office => "\x1b[34m",       // blue
-            Location::Remote => "\x1b[36m",       // cyan
-            Location::Holiday => "\x1b[45;97;1m", // magenta bg, white bold
-            Location::OnSite => "\x1b[33m",       // yellow
-            Location::Mixed => "\x1b[35m",        // purple
+            Location::Office => "\x1b[34m",               // blue
+            Location::Remote => "\x1b[36m",               // cyan
+            Location::Holiday => "\x1b[45;97;1m",         // magenta bg, white bold
+            Location::NationalHoliday => "\x1b[41;97;1m", // red bg, white bold
+            Location::OnSite => "\x1b[33m",               // yellow
+            Location::Mixed => "\x1b[35m",                // purple
         }
     }
 }
