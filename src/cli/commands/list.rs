@@ -654,7 +654,7 @@ fn print_daily_row_compact(
 
     if day_position == Location::Holiday {
         println!(
-            "{:<dw$} | {}{:<12}{}\x1b[0m | {:<21} | {:^5} | {}{}{}\x1b[0m",
+            "{:<dw$} | {}{:<12}{}\x1b[0m | {:<21} | {:^5} | {}Δ -{}\x1b[0m",
             date_str,
             pos_color,
             pos_label,
@@ -662,7 +662,6 @@ fn print_daily_row_compact(
             format!("{}--:-- / --:-- / --:--{}", colors::GREY, colors::RESET),
             format!("{}--:--{}", colors::GREY, colors::RESET),
             colors::GREY,
-            "Δ -",
             colors::RESET,
             dw = dw
         );
@@ -716,16 +715,18 @@ fn print_daily_row_compact(
         }
     };
 
+    let times_string = format!("{} / {} / {}", first_in_str, lunch_str, end_str);
+    let delta_value = format!("Δ {}", delta_str);
     println!(
         "{:<dw$} | {}{:<12}{}\x1b[0m | {:<21} | {:^5} | {}{}{}\x1b[0m",
         date_str,
         pos_color,
         pos_label,
         colors::RESET,
-        format!("{} / {} / {}", first_in_str, lunch_str, end_str),
+        times_string,
         target_end_str,
         delta_color,
-        format!("Δ {}", delta_str),
+        delta_value,
         colors::RESET,
         dw = dw
     );

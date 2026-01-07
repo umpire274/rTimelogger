@@ -14,7 +14,6 @@ pub const CYAN: &str = "\x1b[36m";
 pub const MAGENTA: &str = "\x1b[35m";
 pub const SECTION_BAR: &str = "\x1b[1;100;97m"; // bold, bright-black background, white text
 
-
 /// Returns GREY when the field is empty (None or "" or "--:--"),
 /// and RESET otherwise.
 pub fn color_for_optional_field<T: AsRef<str>>(value: Option<T>) -> &'static str {
