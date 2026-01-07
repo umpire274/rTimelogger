@@ -136,6 +136,10 @@ pub enum Commands {
 
     /// List sessions
     List {
+        /// Compact output (single dense line per day)
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        compact: bool,
+
         #[arg(long, short, help = "Filter by year/month/day or a custom range")]
         period: Option<String>,
 
@@ -156,6 +160,7 @@ pub enum Commands {
 
         #[arg(long = "summary", help = "Show summarized per-pair rows")]
         summary: bool,
+
     },
 
     /// Create a backup copy of the database
