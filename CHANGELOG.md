@@ -1,27 +1,53 @@
 # Changelog
 
+## [0.8.3] – Unreleased
+
+### Added
+
+- New `import` command to preload days into the database from JSON or CSV files
+- Support for importing `Holiday` and `NationalHoliday` days
+- Dry-run mode for imports (`--dry-run`) to preview changes without modifying the database
+- Conflict detection during import with optional override using `--replace`
+- Support for specifying import source via `--source` (default: `import`)
+- Import metadata support via `meta` field (e.g. holiday name)
+- Extended `Event` constructor to explicitly handle `source` and `meta` fields
+
+### Improved
+
+- Better validation and error reporting during bulk imports
+- Safer import execution using database transactions
+- Clear separation between user holidays (`Holiday`) and public holidays (`NationalHoliday`)
+
+### Internal
+
+- Refactored database query layer to use module-based structure
+- Improved consistency in error handling across import parsers (JSON / CSV)
+
+---
 
 ## [0.8.2] — 2026-01-08
 
 ### ✨ Added
 
-- Added a new day position **National holiday** (**N**) to represent public holidays that do not affect personal holiday allowance. 
-- Introduced support for `--pos n` / `--pos national` in the `add` command to mark national holidays. 
+- Added a new day position **National holiday** (**N**) to represent public holidays that do not affect personal holiday
+  allowance.
+- Introduced support for `--pos n` / `--pos national` in the `add` command to mark national holidays.
 - Added idempotent database migration to extend the `events.position` CHECK constraint with the new `N` value.
 
 ### 🧠 Changed
 
-- Updated daily and compact list views to properly display **National holiday** days with neutral time and ΔWORK values. 
-- Improved semantic distinction between **Holiday** (personal leave) and **National holiday** (public holiday) in reports and summaries.
+- Updated daily and compact list views to properly display **National holiday** days with neutral time and ΔWORK values.
+- Improved semantic distinction between **Holiday** (personal leave) and **National holiday** (public holiday) in
+  reports and summaries.
 
 ### 🐞 Fixes
 
-- Ensured database migrations safely no-op when the schema is already aligned. 
+- Ensured database migrations safely no-op when the schema is already aligned.
 - Fixed SQL escaping issues in migration logging statements.
 
 ### 🧹 Internal
 
-- Extended Location enum and related parsing/formatting utilities. 
+- Extended Location enum and related parsing/formatting utilities.
 - Refined migration logging for better traceability and robustness.
 
 ---

@@ -189,4 +189,27 @@ pub enum Commands {
         #[arg(long, short = 'f')]
         force: bool,
     },
+
+    /// Import calendar days (e.g., national holidays) from JSON or CSV
+    Import {
+        /// Path to JSON/CSV file to import
+        #[arg(long, value_name = "FILE")]
+        file: String,
+
+        /// Input format: json|csv (default: json)
+        #[arg(long, default_value = "json", value_parser = ["json", "csv"])]
+        format: String,
+
+        /// Print actions without writing to DB
+        #[arg(long = "dry-run", action = clap::ArgAction::SetTrue)]
+        dry_run: bool,
+
+        /// Replace existing data on conflicting dates (DANGEROUS)
+        #[arg(long, action = clap::ArgAction::SetTrue)]
+        replace: bool,
+
+        /// Source label stored in DB (default: import)
+        #[arg(long, default_value = "import")]
+        source: String,
+    },
 }

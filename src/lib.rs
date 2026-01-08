@@ -7,6 +7,7 @@ pub mod core;
 pub mod db;
 pub mod errors;
 pub mod export;
+pub mod import;
 pub mod models;
 pub mod ui;
 pub mod utils;
@@ -28,6 +29,7 @@ pub fn dispatch(cli: &Cli, cfg: &Config) -> AppResult<()> {
         Commands::Backup { .. } => cli::commands::backup::handle(&cli.command, cfg),
         Commands::Log { .. } => cli::commands::log::handle(&cli.command, cfg),
         Commands::Export { .. } => cli::commands::export::handle(&cli.command, cfg),
+        Commands::Import { .. } => cli::commands::import::handle(&cli.command, cfg),
     }
 }
 
