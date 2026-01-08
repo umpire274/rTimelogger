@@ -3,7 +3,7 @@ use std::fs;
 use crate::cli::parser::Commands;
 use crate::config::Config;
 use crate::errors::{AppError, AppResult};
-use crate::import::{import_days_from_str, ImportInputFormat};
+use crate::import::{ImportInputFormat, import_days_from_str};
 use crate::ui::messages::{info, success, warning};
 
 use crate::utils::formatting::build_import_source;

@@ -7,7 +7,7 @@ use crate::db::pool::DbPool;
 use crate::db::queries;
 use crate::db::queries::import as qimp;
 use crate::errors::{AppError, AppResult};
-use crate::models::event::Event;
+use crate::models::event::{Event, EventExtras};
 use crate::models::event_type::EventType;
 use crate::models::location::Location;
 
@@ -28,14 +28,19 @@ pub fn import_days_from_str(
         ImportInputFormat::Csv => parse_csv_days(content),
     };
 
-    let mut rep = ImportReport::default();
-    rep.total = parsed.len(); // ✅ totale righe lette dal file
+    // NOTE: total = rows read from file (before validation/dedup)
+    let mut rep = ImportReport {
+        total: parsed.len(),
+        ..Default::default()
+    };
 
+    // normalize + validate + dedup(last wins)
     let mut dedup: BTreeMap<NaiveDate, ImportDay> = BTreeMap::new();
 
     for row in parsed {
         match row {
             Ok(day) => {
+                // Accept only day-markers
                 if day.position != Location::Holiday && day.position != Location::NationalHoliday {
                     rep.invalid += 1;
                     continue;
@@ -108,7 +113,7 @@ fn apply_one(
         qimp::delete_events_for_date(conn, &day.date)?;
     }
 
-    // Insert marker at 00:00 as IN with location H/N
+    // Insert marker at 00:00 as IN with location Holiday/NationalHoliday
     let t0 = NaiveTime::from_hms_opt(0, 0, 0)
         .ok_or_else(|| AppError::InvalidArgs("Invalid midnight time".into()))?;
 
@@ -118,15 +123,18 @@ fn apply_one(
         t0,
         EventType::In,
         day.position,
-        Some(0),
-        false,
-        Some(source),
-        day.meta.clone(),
+        EventExtras {
+            lunch: Some(0),
+            work_gap: false,
+            source: Some(source.to_string()),
+            meta: day.meta.clone(), // ✅ persisted into events.meta
+            ..Default::default()
+        },
     );
 
     queries::insert_event(conn, &ev)?;
 
-    // For markers, pair can stay 0 (non-working day marker).
+    // For markers, pair can stay 0 (recalc_pairs_for_date will keep it at 0 for marker-only days).
     rep.imported += 1;
     Ok(())
 }

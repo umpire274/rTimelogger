@@ -32,11 +32,3 @@ pub(crate) struct ImportDayJson {
     #[serde(default)]
     pub name: Option<String>, // opzionale, informativo
 }
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub(crate) enum ImportJson {
-    Days { days: Vec<ImportDayJson> },
-    Holidays { holidays: Vec<ImportDayJson> },
-    Array(Vec<ImportDayJson>),
-}

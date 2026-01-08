@@ -1,7 +1,7 @@
 use crate::db::pool::DbPool;
 use crate::db::queries::{insert_event, load_events_by_date, load_pair_by_index};
 use crate::errors::{AppError, AppResult};
-use crate::models::event::Event;
+use crate::models::event::{Event, EventExtras};
 use crate::models::event_type::EventType;
 use crate::models::location::Location;
 use crate::ui::messages::success;
@@ -40,7 +40,7 @@ impl AddLogic {
         let pos_final = match &pos {
             Some(code) => Location::from_code(code).ok_or_else(|| {
                 AppError::InvalidPosition(format!(
-                    "Invalid location code '{}'. Use a valid code such as 'office', 'remote', 'customer', ...",
+                    "Invalid location code '{}'. Use a valid code such as 'O', 'R', 'H', 'N', 'C', 'M'.",
                     code
                 ))
             })?,
@@ -56,16 +56,14 @@ impl AddLogic {
 
             let (mut ev_in, mut ev_out) = load_pair_by_index(&pool.conn, &date, pair_num)?;
 
-            // POSITION
-            if let Some(ref mut e) = ev_in
-                && pos.is_some()
-            {
-                e.location = pos_final;
-            }
-            if let Some(ref mut e) = ev_out
-                && pos.is_some()
-            {
-                e.location = pos_final;
+            // POSITION (apply only if --pos explicitly provided)
+            if pos.is_some() {
+                if let Some(ref mut e) = ev_in {
+                    e.location = pos_final;
+                }
+                if let Some(ref mut e) = ev_out {
+                    e.location = pos_final;
+                }
             }
 
             // IN time
@@ -79,10 +77,13 @@ impl AddLogic {
                         start_time,
                         EventType::In,
                         pos_final,
-                        lunch,
-                        false,
-                        Some("cli".to_string()),
-                        Some("".to_string()),
+                        EventExtras {
+                            lunch, // if user passed --lunch in edit mode, keep it on IN creation
+                            work_gap: false,
+                            source: Some("cli".to_string()),
+                            meta: None,
+                            ..Default::default()
+                        },
                     ));
                 }
             }
@@ -98,28 +99,31 @@ impl AddLogic {
                         end_time,
                         EventType::Out,
                         pos_final,
-                        Some(0),
-                        false,
-                        Some("cli".to_string()),
-                        Some("".to_string()),
+                        EventExtras {
+                            lunch: Some(0),
+                            work_gap: false,
+                            source: Some("cli".to_string()),
+                            meta: None,
+                            ..Default::default()
+                        },
                     ));
                 }
             }
 
-            // LUNCH
+            // LUNCH (applies to OUT; coherent with your current model)
             if let Some(lunch_val) = lunch
                 && let Some(ref mut e) = ev_out
             {
                 e.lunch = Some(lunch_val);
             }
 
-            // WORK GAP (solo se esplicitamente richiesto)
+            // WORK GAP (only if explicitly requested; requires OUT)
             if let Some(wg) = work_gap {
                 if let Some(ref mut e) = ev_out {
                     e.work_gap = wg;
                 } else {
-                    return Err(AppError::InvalidTime(
-                        "Cannot modify work_gap: pair has no OUT event.".into(),
+                    return Err(AppError::InvalidArgs(
+                        "Cannot modify --work-gap: pair has no OUT event.".into(),
                     ));
                 }
             }
@@ -134,16 +138,13 @@ impl AddLogic {
 
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
-            let (icon, msg) = if Some(work_gap) == Some(Option::from(true)) {
-                ("🔗", "Work gap enabled")
-            } else if Some(work_gap) == Some(Option::from(false)) {
-                ("✂️", "Work gap removed")
-            } else {
-                ("✏️", "Pair updated")
+            let (icon, msg) = match work_gap {
+                Some(true) => ("🔗", "Work gap enabled"),
+                Some(false) => ("✂️", "Work gap removed"),
+                None => ("✏️", "Pair updated"),
             };
 
             success(format!("{} {} for pair {}.", icon, msg, pair_num));
-
             return Ok(());
         }
 
@@ -153,38 +154,37 @@ impl AddLogic {
 
         let lunch_val = lunch.unwrap_or(0);
         let date_str = date.to_string();
-        let wg = work_gap.unwrap_or(false); // 🔑 risolvo QUI
+        let wg = work_gap.unwrap_or(false);
 
         let events_today = load_events_by_date(pool, &date)?;
         let has_events = !events_today.is_empty();
 
-        // --work-gap valido solo con OUT
+        // --work-gap valid only with OUT
         if wg && end.is_none() {
-            return Err(AppError::InvalidTime(
+            return Err(AppError::InvalidArgs(
                 "--work-gap can only be used when adding an OUT event.".into(),
             ));
         }
 
         // ------------------------------------------------
-        // ✅ CASE HOLIDAY: allow --pos H without --in/--out
+        // ✅ CASE: Holiday / NationalHoliday marker day
         // ------------------------------------------------
         if pos_final == Location::Holiday || pos_final == Location::NationalHoliday {
-            // Holiday è un marker di giornata: non accetto parametri temporali o lunch/work-gap
+            // Marker day: do not accept time/lunch/work-gap args
             if start.is_some() || end.is_some() || lunch.is_some() || work_gap.is_some() {
                 return Err(AppError::InvalidArgs(
-                    "For holiday days do not specify time-related arguments.".into(),
+                    "For holiday days do not specify --in, --out, --lunch or --work-gap.".into(),
                 ));
             }
 
-            // Se ci sono già eventi quel giorno, non è coerente segnare ferie
+            // If there are already events, it's inconsistent to mark holiday
             if has_events {
                 return Err(AppError::InvalidArgs(
-                    "Cannot set Holiday on a date that already has events.".into(),
+                    "Cannot set a holiday marker on a date that already has events.".into(),
                 ));
             }
 
-            // Inserisco un evento sentinella a mezzanotte con location Holiday.
-            // Uso EventType::In perché nel modello ci sono solo In/Out.
+            // Sentinel event at 00:00
             let holiday_time = NaiveTime::from_hms_opt(0, 0, 0)
                 .ok_or_else(|| AppError::Other("Invalid holiday time sentinel.".into()))?;
 
@@ -192,20 +192,23 @@ impl AddLogic {
                 0,
                 date,
                 holiday_time,
-                EventType::In,
+                EventType::In, // sentinel kind
                 pos_final,
-                Some(0),
-                false,
-                Some("cli".to_string()),
-                Some("".to_string()),
+                EventExtras {
+                    lunch: Some(0),
+                    work_gap: false,
+                    source: Some("cli".to_string()),
+                    meta: None,
+                    ..Default::default()
+                },
             );
 
             insert_event(&pool.conn, &ev_holiday)?;
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
             success(match pos_final {
-                Location::Holiday => format!("Added HOLIDAY on {}.", date),
-                Location::NationalHoliday => format!("Added NATIONAL HOLIDAY on {}.", date),
+                Location::Holiday => format!("Added HOLIDAY on {}.", date_str),
+                Location::NationalHoliday => format!("Added NATIONAL HOLIDAY on {}.", date_str),
                 _ => unreachable!(),
             });
             return Ok(());
@@ -257,10 +260,13 @@ impl AddLogic {
                 start_time,
                 EventType::In,
                 pos_final,
-                Some(lunch_val),
-                false,
-                Some("cli".to_string()),
-                Some("".to_string()),
+                EventExtras {
+                    lunch: Some(lunch_val),
+                    work_gap: false,
+                    source: Some("cli".to_string()),
+                    meta: None,
+                    ..Default::default()
+                },
             );
 
             insert_event(&pool.conn, &ev_in)?;
@@ -280,15 +286,16 @@ impl AddLogic {
                 .find(|ev| ev.kind == EventType::In)
                 .cloned()
                 .ok_or_else(|| {
-                    AppError::InvalidTime("Cannot add OUT without a previous IN.".into())
+                    AppError::InvalidArgs("Cannot add OUT without a previous IN.".into())
                 })?;
 
             if end_time <= last_in.time {
-                return Err(AppError::InvalidTime(
+                return Err(AppError::InvalidArgs(
                     "OUT must be later than the previous IN.".into(),
                 ));
             }
 
+            // If --pos provided, use it; otherwise inherit last IN location
             let out_position = if pos.is_some() {
                 pos_final
             } else {
@@ -301,10 +308,13 @@ impl AddLogic {
                 end_time,
                 EventType::Out,
                 out_position,
-                Some(lunch_val),
-                wg,
-                Some("cli".to_string()),
-                Some("".to_string()),
+                EventExtras {
+                    lunch: Some(lunch_val),
+                    work_gap: wg,
+                    source: Some("cli".to_string()),
+                    meta: None,
+                    ..Default::default()
+                },
             );
 
             insert_event(&pool.conn, &ev_out)?;
@@ -320,20 +330,22 @@ impl AddLogic {
         // CASE E: full pair
         if let (Some(start_time), Some(end_time)) = (start, end) {
             if end_time <= start_time {
-                return Err(AppError::InvalidTime("END must be later than IN.".into()));
+                return Err(AppError::InvalidArgs("END must be later than IN.".into()));
             }
 
-            let in_position = pos_final;
             let ev_in = Event::new(
                 0,
                 date,
                 start_time,
                 EventType::In,
-                in_position,
-                Some(lunch_val),
-                false,
-                Some("cli".to_string()),
-                Some("".to_string()),
+                pos_final,
+                EventExtras {
+                    lunch: Some(lunch_val),
+                    work_gap: false,
+                    source: Some("cli".to_string()),
+                    meta: None,
+                    ..Default::default()
+                },
             );
 
             let ev_out = Event::new(
@@ -341,11 +353,14 @@ impl AddLogic {
                 date,
                 end_time,
                 EventType::Out,
-                in_position,
-                Some(0),
-                wg,
-                Some("cli".to_string()),
-                Some("".to_string()),
+                pos_final,
+                EventExtras {
+                    lunch: Some(0),
+                    work_gap: wg,
+                    source: Some("cli".to_string()),
+                    meta: None,
+                    ..Default::default()
+                },
             );
 
             insert_event(&pool.conn, &ev_in)?;

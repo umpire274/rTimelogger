@@ -19,6 +19,16 @@ pub struct Event {
     pub created_at: String,   // ⇔ events.created_at (TEXT, ISO8601)
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct EventExtras {
+    pub lunch: Option<i32>,
+    pub work_gap: bool,
+    pub meta: Option<String>,
+    pub source: Option<String>,
+    pub pair: Option<i32>,
+    pub created_at: Option<String>,
+}
+
 impl Event {
     /// Costruttore "di alto livello" per eventi creati dalla CLI.
     /// - Imposta `pair = 0` (sarà ricalcolato da recalc_all_pairs)
@@ -29,10 +39,7 @@ impl Event {
         time: NaiveTime,
         kind: EventType,
         location: Location,
-        lunch: Option<i32>,
-        work_gap: bool,
-        source: Option<impl Into<String>>,
-        meta: Option<String>,
+        extras: EventExtras,
     ) -> Self {
         Self {
             id,
@@ -40,14 +47,14 @@ impl Event {
             time,
             kind,
             location,
-            lunch,
-            work_gap,
-            pair: 0,
-            source: source
-                .map(|s| s.into())
-                .unwrap_or_else(|| "cli".to_string()),
-            meta,
-            created_at: Local::now().to_rfc3339(),
+            lunch: extras.lunch,
+            work_gap: extras.work_gap,
+            pair: extras.pair.unwrap_or(0),
+            source: extras.source.unwrap_or_else(|| "cli".to_string()),
+            meta: extras.meta,
+            created_at: extras
+                .created_at
+                .unwrap_or_else(|| Local::now().to_rfc3339()),
         }
     }
 
