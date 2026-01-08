@@ -1,27 +1,107 @@
 # Changelog
 
+## [0.8.3] – Unreleased
+
+### ✨ New features
+
+- **Import data from JSON and CSV files**
+    - New `import` command to insert events into the database from external sources.
+    - Supported formats:
+        - `JSON` (flexible structures: root array, `{ days: [...] }`, `{ holidays: [...] }`)
+        - `CSV` (with header row).
+    - Supported options:
+        - `--file <path>`: input file
+        - `--format <json|csv>` (default: `json`)
+        - `--dry-run`: simulate the import without modifying the database
+        - `--replace`: overwrite existing conflicting data
+        - `--source`: logical label describing the data origin
+
+- **National holidays support**
+    - Added new position `NationalHoliday`.
+    - National holidays:
+        - do **not** affect the user vacation balance
+        - are compatible with automatic/preventive imports (e.g. yearly calendars).
+
+- **Preventive holiday import**
+    - Allows preparing JSON/CSV files with annual holidays and importing them in advance.
+    - Reduces manual errors and forgotten entries.
+
+---
+
+### 🔧 Improvements
+
+- **Enhanced data source tracking**
+    - The `source` field of imported events now automatically includes the input format  
+      (e.g. `import (from json)`, `import (from csv)`).
+
+- **`meta` field support for imported events**
+    - Descriptive data (e.g. holiday name) is stored in the `meta` field as JSON.
+    - Example:
+      ```json
+      { "name": "New Year" }
+      ```
+
+- **Refactor of `Event::new()` constructor**
+    - The constructor now explicitly supports:
+        - `meta`
+        - `source`
+    - Clear separation between CLI-created events and imported events.
+
+- **Database query refactor**
+    - Split `db::queries` into topic-based submodules.
+    - Fixed module conflict between `queries.rs` and `queries/mod.rs`.
+
+- **Shared utilities**
+    - Added helper functions in `utils::formatting` to standardize `source` generation.
+
+---
+
+### 🛠 Fixes
+
+- Improved validation of imported records:
+    - invalid dates
+    - unsupported positions
+    - malformed rows
+- Improved import reporting:
+    - total rows
+    - imported rows
+    - skipped rows
+    - conflicts
+    - invalid rows
+
+---
+
+### 🧪 Developer notes
+
+- All import logic is isolated in the `src/import` module.
+- Full `dry-run` support for safe testing on real databases.
+- Solid foundation for future integrations (ICS calendars, APIs, external sync).
+
+---
 
 ## [0.8.2] — 2026-01-08
 
 ### ✨ Added
 
-- Added a new day position **National holiday** (**N**) to represent public holidays that do not affect personal holiday allowance. 
-- Introduced support for `--pos n` / `--pos national` in the `add` command to mark national holidays. 
+- Added a new day position **National holiday** (**N**) to represent public holidays that do not affect personal holiday
+  allowance.
+- Introduced support for `--pos n` / `--pos national` in the `add` command to mark national holidays.
 - Added idempotent database migration to extend the `events.position` CHECK constraint with the new `N` value.
 
 ### 🧠 Changed
 
-- Updated daily and compact list views to properly display **National holiday** days with neutral time and ΔWORK values. 
-- Improved semantic distinction between **Holiday** (personal leave) and **National holiday** (public holiday) in reports and summaries.
+- Updated daily and compact list views to properly display **National holiday** days with neutral time and ΔWORK values.
+- Improved semantic distinction between **Holiday** (personal leave) and **National holiday** (public holiday) in
+  reports and summaries.
 
 ### 🐞 Fixes
 
-- Ensured database migrations safely no-op when the schema is already aligned. 
+- Ensured database migrations safely no-op when the schema is already aligned.
 - Fixed SQL escaping issues in migration logging statements.
 
 ### 🧹 Internal
 
-- Extended Location enum and related parsing/formatting utilities. 
+- Extended Location enum and related parsing/formatting utilities.
 - Refined migration logging for better traceability and robustness.
 
 ---

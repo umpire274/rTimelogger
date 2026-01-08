@@ -4,6 +4,7 @@ pub mod config;
 pub mod db;
 pub mod del;
 pub mod export;
+pub mod import;
 pub mod init;
 pub mod list;
 pub mod log;

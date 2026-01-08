@@ -13,17 +13,25 @@ pub struct Event {
     pub lunch: Option<i32>, // ⇔ events.lunch_break (INT, default 0)
     pub work_gap: bool,     // ⇔ events.meta/work_gap logica futura
 
-    pub pair: i32,          // ⇔ events.pair (INT NOT NULL DEFAULT 0)
-    pub source: String,     // ⇔ events.source (TEXT, default 'cli')
-    pub meta: String,       // ⇔ events.meta (TEXT, default '')
-    pub created_at: String, // ⇔ events.created_at (TEXT, ISO8601)
+    pub pair: i32,            // ⇔ events.pair (INT NOT NULL DEFAULT 0)
+    pub source: String,       // ⇔ events.source (TEXT, default 'cli')
+    pub meta: Option<String>, // ⇔ events.meta (TEXT, default '')
+    pub created_at: String,   // ⇔ events.created_at (TEXT, ISO8601)
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EventExtras {
+    pub lunch: Option<i32>,
+    pub work_gap: bool,
+    pub meta: Option<String>,
+    pub source: Option<String>,
+    pub pair: Option<i32>,
+    pub created_at: Option<String>,
 }
 
 impl Event {
     /// Costruttore "di alto livello" per eventi creati dalla CLI.
     /// - Imposta `pair = 0` (sarà ricalcolato da recalc_all_pairs)
-    /// - Imposta `source = "cli"`
-    /// - Imposta `meta = ""`
     /// - Imposta `created_at = now() in ISO8601`
     pub fn new(
         id: i32,
@@ -31,8 +39,7 @@ impl Event {
         time: NaiveTime,
         kind: EventType,
         location: Location,
-        lunch: Option<i32>,
-        work_gap: bool,
+        extras: EventExtras,
     ) -> Self {
         Self {
             id,
@@ -40,12 +47,14 @@ impl Event {
             time,
             kind,
             location,
-            lunch,
-            work_gap,
-            pair: 0,
-            source: "cli".to_string(),
-            meta: String::new(),
-            created_at: Local::now().to_rfc3339(),
+            lunch: extras.lunch,
+            work_gap: extras.work_gap,
+            pair: extras.pair.unwrap_or(0),
+            source: extras.source.unwrap_or_else(|| "cli".to_string()),
+            meta: extras.meta,
+            created_at: extras
+                .created_at
+                .unwrap_or_else(|| Local::now().to_rfc3339()),
         }
     }
 
