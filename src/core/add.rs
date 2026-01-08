@@ -81,6 +81,8 @@ impl AddLogic {
                         pos_final,
                         lunch,
                         false,
+                        Some("cli".to_string()),
+                        Some("".to_string()),
                     ));
                 }
             }
@@ -98,6 +100,8 @@ impl AddLogic {
                         pos_final,
                         Some(0),
                         false,
+                        Some("cli".to_string()),
+                        Some("".to_string()),
                     ));
                 }
             }
@@ -192,6 +196,8 @@ impl AddLogic {
                 pos_final,
                 Some(0),
                 false,
+                Some("cli".to_string()),
+                Some("".to_string()),
             );
 
             insert_event(&pool.conn, &ev_holiday)?;
@@ -253,6 +259,8 @@ impl AddLogic {
                 pos_final,
                 Some(lunch_val),
                 false,
+                Some("cli".to_string()),
+                Some("".to_string()),
             );
 
             insert_event(&pool.conn, &ev_in)?;
@@ -295,6 +303,8 @@ impl AddLogic {
                 out_position,
                 Some(lunch_val),
                 wg,
+                Some("cli".to_string()),
+                Some("".to_string()),
             );
 
             insert_event(&pool.conn, &ev_out)?;
@@ -322,9 +332,21 @@ impl AddLogic {
                 in_position,
                 Some(lunch_val),
                 false,
+                Some("cli".to_string()),
+                Some("".to_string()),
             );
 
-            let ev_out = Event::new(0, date, end_time, EventType::Out, in_position, Some(0), wg);
+            let ev_out = Event::new(
+                0,
+                date,
+                end_time,
+                EventType::Out,
+                in_position,
+                Some(0),
+                wg,
+                Some("cli".to_string()),
+                Some("".to_string()),
+            );
 
             insert_event(&pool.conn, &ev_in)?;
             insert_event(&pool.conn, &ev_out)?;

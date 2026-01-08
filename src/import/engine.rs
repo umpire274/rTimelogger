@@ -90,7 +90,7 @@ fn apply_one(
     conn: &rusqlite::Connection, // tx deref -> Connection
     day: &ImportDay,
     replace: bool,
-    _source: &str,
+    source: &str,
     rep: &mut ImportReport,
 ) -> AppResult<()> {
     if qimp::day_marker_exists(conn, &day.date)? {
@@ -112,7 +112,17 @@ fn apply_one(
     let t0 = NaiveTime::from_hms_opt(0, 0, 0)
         .ok_or_else(|| AppError::InvalidArgs("Invalid midnight time".into()))?;
 
-    let ev = Event::new(0, day.date, t0, EventType::In, day.position, Some(0), false);
+    let ev = Event::new(
+        0,
+        day.date,
+        t0,
+        EventType::In,
+        day.position,
+        Some(0),
+        false,
+        Some(source),
+        day.meta.clone(),
+    );
 
     queries::insert_event(conn, &ev)?;
 

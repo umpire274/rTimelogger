@@ -476,6 +476,152 @@ Output path must be **absolute**.
 
 ---
 
+## Import data (JSON / CSV)
+
+Starting from **v0.8.3**, rTimelogger supports importing work sessions and holidays from external files.  
+This feature is designed to simplify **preventive data entry**, especially for **national holidays**.
+
+The import system is safe by default and provides a full **dry-run mode**.
+
+---
+
+### Supported formats
+
+#### JSON
+
+Flexible JSON structures are supported. The following formats are valid:
+
+**Root object with `holidays`:**
+
+```json
+{
+  "year": 2026,
+  "holidays": [
+    {
+      "date": "2026-01-01",
+      "name": "New Year"
+    },
+    {
+      "date": "2026-01-06",
+      "name": "Epiphany"
+    }
+  ]
+}
+```
+
+**Root object with `days`:**
+
+```json
+{
+  "days": [
+    {
+      "date": "2026-05-01",
+      "position": "N",
+      "name": "Labour Day"
+    }
+  ]
+}
+```
+
+**Root array of day objects:**
+
+```json
+[
+  {
+    "date": "2026-12-25",
+    "name": "Christmas Day"
+  }
+]
+
+```
+
+**Notes**:
+
+- `position` is optional:
+    - if omitted, it defaults to `NationalHoliday`
+- `name` is optional and stored in the event `meta` field
+
+#### CSV
+
+CSV files must include a header row.
+
+Example:
+
+```csv
+date,position,name
+2026-01-01,N,New Year
+2026-01-06,N,Epiphany
+2026-04-25,N,Liberation Day
+```
+
+**Notes**:
+
+- `position` must be a valid location code (`N`, `H`, `O`, `R`, `C`, `M`)
+- name is optional
+
+### Import command
+
+```bash
+rtimelogger import --file <path> [options]
+```
+
+**Options**
+
+- `--file <path>` : Path to the input file (required)
+
+- `--format <json|csv>` : Input format (default: json)
+
+- `--dry-run` : Simulate the import without modifying the database (strongly recommended)
+
+- `--replace` : Replace existing events for conflicting dates (dangerous)
+
+- `--source <label>` : Logical label describing the origin of imported data. The final stored value will include the
+  format automatically (e.g. import (from json))
+
+### Import behavior
+
+- Only Holiday and NationalHoliday positions are accepted by default.
+- Dates with existing work events are skipped unless --replace is used.
+- Imported holidays:
+    - do **not** affect the vacation balance
+    - are treated as regular timeline entries
+
+- Each import generates a detailed summary:
+    - total rows
+    - imported
+    - skipped
+    - conflicts
+    - invalid rows
+
+### Example (dry-run)
+
+```bash
+rtimelogger import \
+  --file holidays_2026.json \
+  --format json \
+  --dry-run
+```
+
+### Example (apply import)
+
+```bash
+rtimelogger import \
+  --file holidays_2026.csv \
+  --format csv \
+  --source calendar
+```
+
+### Metadata and traceability
+
+- Imported events store additional information in the meta field (JSON).
+- The source field tracks the origin of the data:
+    - CLI entries → cli
+    - Imports → import (from json) / import (from csv)
+
+This ensures full traceability of all events.
+
+---
+
 ## 🗄️ Database utilities — `rtimelogger db`
 
 ```bash

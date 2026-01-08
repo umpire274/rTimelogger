@@ -3,9 +3,10 @@ use std::fs;
 use crate::cli::parser::Commands;
 use crate::config::Config;
 use crate::errors::{AppError, AppResult};
-use crate::import::{ImportInputFormat, import_days_from_str};
+use crate::import::{import_days_from_str, ImportInputFormat};
 use crate::ui::messages::{info, success, warning};
 
+use crate::utils::formatting::build_import_source;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,7 +74,16 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
         content = normalize_json_to_days(&content)?;
     }
 
-    let report = import_days_from_str(cfg, &content, input_format, *dry_run, *replace, source)?;
+    let imp_source = build_import_source(source, format);
+
+    let report = import_days_from_str(
+        cfg,
+        &content,
+        input_format,
+        *dry_run,
+        *replace,
+        imp_source.as_str(),
+    )?;
 
     info(format!(
         "Import summary{}:\n- File: {}\n- Format: {}\n- Source: {}\n- Total rows: {}\n- Imported: {}\n- Skipped (already present): {}\n- Conflicts: {}\n- Invalid rows: {}",

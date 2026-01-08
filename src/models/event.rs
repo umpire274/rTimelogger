@@ -13,17 +13,15 @@ pub struct Event {
     pub lunch: Option<i32>, // ⇔ events.lunch_break (INT, default 0)
     pub work_gap: bool,     // ⇔ events.meta/work_gap logica futura
 
-    pub pair: i32,          // ⇔ events.pair (INT NOT NULL DEFAULT 0)
-    pub source: String,     // ⇔ events.source (TEXT, default 'cli')
-    pub meta: String,       // ⇔ events.meta (TEXT, default '')
-    pub created_at: String, // ⇔ events.created_at (TEXT, ISO8601)
+    pub pair: i32,            // ⇔ events.pair (INT NOT NULL DEFAULT 0)
+    pub source: String,       // ⇔ events.source (TEXT, default 'cli')
+    pub meta: Option<String>, // ⇔ events.meta (TEXT, default '')
+    pub created_at: String,   // ⇔ events.created_at (TEXT, ISO8601)
 }
 
 impl Event {
     /// Costruttore "di alto livello" per eventi creati dalla CLI.
     /// - Imposta `pair = 0` (sarà ricalcolato da recalc_all_pairs)
-    /// - Imposta `source = "cli"`
-    /// - Imposta `meta = ""`
     /// - Imposta `created_at = now() in ISO8601`
     pub fn new(
         id: i32,
@@ -33,6 +31,8 @@ impl Event {
         location: Location,
         lunch: Option<i32>,
         work_gap: bool,
+        source: Option<impl Into<String>>,
+        meta: Option<String>,
     ) -> Self {
         Self {
             id,
@@ -43,8 +43,10 @@ impl Event {
             lunch,
             work_gap,
             pair: 0,
-            source: "cli".to_string(),
-            meta: String::new(),
+            source: source
+                .map(|s| s.into())
+                .unwrap_or_else(|| "cli".to_string()),
+            meta,
             created_at: Local::now().to_rfc3339(),
         }
     }

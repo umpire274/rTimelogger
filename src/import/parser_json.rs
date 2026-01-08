@@ -41,7 +41,10 @@ pub(crate) fn parse_json_days(input: &str) -> Vec<AppResult<ImportDay>> {
                 None => Location::NationalHoliday, // ✅ default
             };
 
-            let meta = r.name.map(|n| serde_json::json!({ "name": n }).to_string());
+            let meta = r
+                .name
+                .map(|n| n.trim().to_string())
+                .filter(|s| !s.is_empty());
 
             Ok(ImportDay {
                 date,

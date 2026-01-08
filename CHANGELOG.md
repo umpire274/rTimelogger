@@ -2,26 +2,80 @@
 
 ## [0.8.3] – Unreleased
 
-### Added
+### ✨ New features
 
-- New `import` command to preload days into the database from JSON or CSV files
-- Support for importing `Holiday` and `NationalHoliday` days
-- Dry-run mode for imports (`--dry-run`) to preview changes without modifying the database
-- Conflict detection during import with optional override using `--replace`
-- Support for specifying import source via `--source` (default: `import`)
-- Import metadata support via `meta` field (e.g. holiday name)
-- Extended `Event` constructor to explicitly handle `source` and `meta` fields
+- **Import data from JSON and CSV files**
+    - New `import` command to insert events into the database from external sources.
+    - Supported formats:
+        - `JSON` (flexible structures: root array, `{ days: [...] }`, `{ holidays: [...] }`)
+        - `CSV` (with header row).
+    - Supported options:
+        - `--file <path>`: input file
+        - `--format <json|csv>` (default: `json`)
+        - `--dry-run`: simulate the import without modifying the database
+        - `--replace`: overwrite existing conflicting data
+        - `--source`: logical label describing the data origin
 
-### Improved
+- **National holidays support**
+    - Added new position `NationalHoliday`.
+    - National holidays:
+        - do **not** affect the user vacation balance
+        - are compatible with automatic/preventive imports (e.g. yearly calendars).
 
-- Better validation and error reporting during bulk imports
-- Safer import execution using database transactions
-- Clear separation between user holidays (`Holiday`) and public holidays (`NationalHoliday`)
+- **Preventive holiday import**
+    - Allows preparing JSON/CSV files with annual holidays and importing them in advance.
+    - Reduces manual errors and forgotten entries.
 
-### Internal
+---
 
-- Refactored database query layer to use module-based structure
-- Improved consistency in error handling across import parsers (JSON / CSV)
+### 🔧 Improvements
+
+- **Enhanced data source tracking**
+    - The `source` field of imported events now automatically includes the input format  
+      (e.g. `import (from json)`, `import (from csv)`).
+
+- **`meta` field support for imported events**
+    - Descriptive data (e.g. holiday name) is stored in the `meta` field as JSON.
+    - Example:
+      ```json
+      { "name": "New Year" }
+      ```
+
+- **Refactor of `Event::new()` constructor**
+    - The constructor now explicitly supports:
+        - `meta`
+        - `source`
+    - Clear separation between CLI-created events and imported events.
+
+- **Database query refactor**
+    - Split `db::queries` into topic-based submodules.
+    - Fixed module conflict between `queries.rs` and `queries/mod.rs`.
+
+- **Shared utilities**
+    - Added helper functions in `utils::formatting` to standardize `source` generation.
+
+---
+
+### 🛠 Fixes
+
+- Improved validation of imported records:
+    - invalid dates
+    - unsupported positions
+    - malformed rows
+- Improved import reporting:
+    - total rows
+    - imported rows
+    - skipped rows
+    - conflicts
+    - invalid rows
+
+---
+
+### 🧪 Developer notes
+
+- All import logic is isolated in the `src/import` module.
+- Full `dry-run` support for safe testing on real databases.
+- Solid foundation for future integrations (ICS calendars, APIs, external sync).
 
 ---
 

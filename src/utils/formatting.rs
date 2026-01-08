@@ -91,3 +91,7 @@ pub fn right_pad_prefix(box_width: usize, visible_text: &str) -> String {
     let pad = box_width.saturating_sub(len);
     " ".repeat(pad)
 }
+
+pub fn build_import_source(base: &str, format: &str) -> String {
+    format!("{} (from {})", base, format.to_ascii_lowercase())
+}
