@@ -112,4 +112,32 @@ impl Event {
 
         Ok(exists)
     }
+
+    #[cfg(test)]
+    pub fn test_with_meta(meta: Option<&str>) -> Self {
+        Self {
+            id: 0,
+            date: Default::default(),
+            time: Default::default(),
+            kind: EventType::In,
+            location: Location::Office,
+            lunch: None,
+            work_gap: false,
+            pair: 0,
+            source: "".to_string(),
+            meta: meta.map(|s| s.to_string()),
+            // Inizializza qui TUTTI gli altri campi con valori “dummy” validi.
+            // Esempi tipici:
+            // id: 0,
+            // date: chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap(),
+            // kind: EventKind::In,
+            // location: Location::Office,
+            // lunch: None,
+            // source: "test".into(),
+            // pair: 0,
+            // work_gap: false,
+            // ...
+            created_at: "".to_string(),
+        }
+    }
 }

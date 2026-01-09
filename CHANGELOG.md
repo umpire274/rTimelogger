@@ -1,6 +1,32 @@
 # Changelog
 
-## [0.8.3] – Unreleased
+## v0.8.4 — 2026-01-09
+
+### Changed
+
+- Improved `list` command output for `National Holiday` days:
+    - time placeholders (`--:--`) are no longer shown
+    - the `meta` field is displayed instead, providing a meaningful holiday description
+- Made `National Holiday` row layout adaptive to table width:
+    - meta column now expands dynamically based on the current table layout
+    - works consistently across weekday display modes and `--compact`
+- Unified and hardened `meta` rendering:
+    - meta values are filtered, concatenated, and truncated in a single helper
+    - truncation is Unicode-safe (char-based, UTF-8 safe)
+    - optional ellipsis (`…`) is applied when truncation occurs
+- Added focused unit tests for `get_meta_string` to validate:
+    - filtering of empty metadata
+    - correct concatenation
+    - Unicode-safe truncation behavior
+
+### Internal
+
+- Refactored list rendering logic to reduce hardcoded column widths
+- Improved robustness of table layout against future column size changes
+
+---
+
+## [0.8.3] – 2026-01-08
 
 ### ✨ New features
 
