@@ -99,7 +99,7 @@ const CDWORK_W: usize = 7;
 fn compact_table_width(mode: WeekdayMode) -> usize {
     let dw = date_col_width(mode);
     // date + 3 + pos + 3 + triple + 3 + tgt + 3 + dwork
-    dw + 3 + CPOS_W + 3 + TRIPLE_W + 3 + CTGT_W + 3 + CDWORK_W + 3
+    dw + 3 + CPOS_W + 3 + TRIPLE_W + 3 + CTGT_W + 3 + CDWORK_W + 7
 }
 
 fn format_date_with_weekday(date: &NaiveDate, mode: WeekdayMode) -> String {
@@ -110,6 +110,36 @@ fn format_date_with_weekday(date: &NaiveDate, mode: WeekdayMode) -> String {
     } else {
         date_str
     }
+}
+
+fn get_meta_string(events: &[Event], max_chars: usize) -> String {
+    if max_chars == 0 {
+        return String::new();
+    }
+
+    let joined = events
+        .iter()
+        .filter_map(|e| e.meta.as_deref())
+        .filter(|s| !s.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let count = joined.chars().count();
+    if count <= max_chars {
+        return joined;
+    }
+
+    if max_chars == 1 {
+        return "…".to_string();
+    }
+
+    let mut out: String = joined.chars().take(max_chars - 1).collect();
+    out.push('…');
+    out
+}
+
+fn remaining_width(total_width: usize, plain_prefix: &str) -> usize {
+    total_width.saturating_sub(plain_prefix.len())
 }
 
 //
@@ -529,19 +559,42 @@ fn print_daily_row(
         }
     }
 
-    println!(
-        " {:<dw$} | {}{}\x1b[0m | {:^5} | {:^5} | {:^5} | {:^5} | {}{:>7}\x1b[0m",
-        date_str,
-        pos_color,
-        pos_fmt,
-        first_in_str,
-        lunch_c,
-        end_c,
-        expected_exit_str,
-        surplus_color,
-        surplus_display,
-        dw = dw
-    );
+    if day_position == Location::NationalHoliday {
+        let twidth = daily_table_width(wd_mode);
+
+        // prefisso “plain” (senza colori) uguale a ciò che stampi prima del meta
+        let plain_prefix = format!(" {:<dw$} | {:<16} | ", date_str, pos_label, dw = dw);
+        let meta_w = remaining_width(twidth, &plain_prefix);
+
+        let meta = get_meta_string(events, meta_w);
+
+        println!(
+            " {:<dw$} | {}{:<16}{}\x1b[0m | {}{:<meta_w$}{}",
+            date_str,
+            pos_color,
+            pos_label,
+            colors::RESET,
+            pos_color,
+            meta,
+            colors::RESET,
+            dw = dw,
+            meta_w = meta_w,
+        );
+    } else {
+        println!(
+            " {:<dw$} | {}{}\x1b[0m | {:^5} | {:^5} | {:^5} | {:^5} | {}{:>7}\x1b[0m",
+            date_str,
+            pos_color,
+            pos_fmt,
+            first_in_str,
+            lunch_c,
+            end_c,
+            expected_exit_str,
+            surplus_color,
+            surplus_display,
+            dw = dw
+        );
+    }
 
     surplus_opt
 }
@@ -616,7 +669,7 @@ fn print_compact_header(wd_mode: WeekdayMode) {
     let twidth = compact_table_width(wd_mode);
 
     println!(
-        "{:^dw$} | {:^12} | {:^21} | {:^5} | {:^7}",
+        "{:^dw$} | {:^16} | {:^21} | {:^5} | {:^7}",
         "DATE",
         "POSITION",
         "IN / LNCH / OUT",
@@ -652,9 +705,9 @@ fn print_daily_row_compact(
     let pos_label = day_position.label();
     let pos_color = day_position.color();
 
-    if day_position == Location::Holiday || day_position == Location::NationalHoliday {
+    if day_position == Location::Holiday {
         println!(
-            "{:<dw$} | {}{:<12}{}\x1b[0m | {:<21} | {:^5} | {}Δ -{}\x1b[0m",
+            "{:<dw$} | {}{:<16}{}\x1b[0m | {:<21} | {:^5} | {}Δ -{}\x1b[0m",
             date_str,
             pos_color,
             pos_label,
@@ -664,6 +717,27 @@ fn print_daily_row_compact(
             colors::GREY,
             colors::RESET,
             dw = dw
+        );
+        return Some(0);
+    } else if day_position == Location::NationalHoliday {
+        let twidth = compact_table_width(wd_mode);
+
+        let plain_prefix = format!("{:<dw$} | {:<16} | ", date_str, pos_label, dw = dw);
+        let meta_w = remaining_width(twidth, &plain_prefix);
+
+        let meta = get_meta_string(events, meta_w);
+
+        println!(
+            "{:<dw$} | {}{:<16}{}\x1b[0m | {}{:<meta_w$}{}",
+            date_str,
+            pos_color,
+            pos_label,
+            colors::RESET,
+            pos_color,
+            meta,
+            colors::RESET,
+            dw = dw,
+            meta_w = meta_w
         );
         return Some(0);
     }
@@ -718,7 +792,7 @@ fn print_daily_row_compact(
     let times_string = format!("{} / {} / {}", first_in_str, lunch_str, end_str);
     let delta_value = format!("Δ {}", delta_str);
     println!(
-        "{:<dw$} | {}{:<12}{}\x1b[0m | {:<21} | {:^5} | {}{}{}\x1b[0m",
+        "{:<dw$} | {}{:<16}{}\x1b[0m | {:<21} | {:^5} | {}{}{}\x1b[0m",
         date_str,
         pos_color,
         pos_label,
@@ -732,4 +806,68 @@ fn print_daily_row_compact(
     );
 
     surplus_opt
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Helper per creare Event con meta valorizzato.
+    // Variante A: se Event implementa Default.
+    fn ev(meta: Option<&str>) -> Event {
+        Event::test_with_meta(meta)
+    }
+
+    // Se Event NON implementa Default, commenta la funzione sopra e crea qui un costruttore
+    // coerente col tuo modello (es. Event::new(...) o struct literal con tutti i campi richiesti).
+
+    #[test]
+    fn meta_string_returns_empty_when_max_is_zero() {
+        let events = vec![ev(Some("Epiphany"))];
+        assert_eq!(get_meta_string(&events, 0), "");
+    }
+
+    #[test]
+    fn meta_string_filters_empty_and_whitespace() {
+        let events = vec![ev(Some("")), ev(Some("   ")), ev(Some("Epiphany"))];
+        assert_eq!(get_meta_string(&events, 100), "Epiphany");
+    }
+
+    #[test]
+    fn meta_string_joins_multiple_meta_with_comma_space() {
+        let events = vec![ev(Some("Epiphany")), ev(Some("Republic Day"))];
+        assert_eq!(get_meta_string(&events, 100), "Epiphany, Republic Day");
+    }
+
+    #[test]
+    fn meta_string_truncates_unicode_safely_by_chars() {
+        let events = vec![ev(Some("caffè 漢字")), ev(Some("fine"))];
+
+        let full = get_meta_string(&events, 1_000);
+        assert_eq!(full, "caffè 漢字, fine");
+
+        let n = 7;
+
+        // Atteso secondo policy ellissi: max_chars include il carattere '…'
+        let expected = if n == 0 {
+            String::new()
+        } else if full.chars().count() <= n {
+            full.clone()
+        } else if n == 1 {
+            "…".to_string()
+        } else {
+            let mut s: String = full.chars().take(n - 1).collect();
+            s.push('…');
+            s
+        };
+
+        let got = get_meta_string(&events, n);
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn meta_string_does_not_truncate_when_within_limit() {
+        let events = vec![ev(Some("Epiphany"))];
+        assert_eq!(get_meta_string(&events, 10), "Epiphany");
+    }
 }
