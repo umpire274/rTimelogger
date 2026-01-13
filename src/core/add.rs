@@ -285,7 +285,7 @@ impl AddLogic {
             let tgt_str = crate::utils::time::format_minutes(tgt_mins);
 
             success(format!(
-                "✅ Added IN at {} on {}. TGT => {}",
+                "Added IN at {} on {}. TGT => {}",
                 start_time, date_str, tgt_str
             ));
             return Ok(());
