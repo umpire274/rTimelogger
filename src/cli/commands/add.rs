@@ -70,6 +70,7 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
         // 7. Execute logic
         //
         AddLogic::apply(
+            cfg,
             &mut pool,
             d,
             pos_final,

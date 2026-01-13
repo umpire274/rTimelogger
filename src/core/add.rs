@@ -1,3 +1,5 @@
+use crate::config::Config;
+use crate::core::logic::Core;
 use crate::db::pool::DbPool;
 use crate::db::queries::{insert_event, load_events_by_date, load_pair_by_index};
 use crate::errors::{AppError, AppResult};
@@ -5,7 +7,7 @@ use crate::models::event::{Event, EventExtras};
 use crate::models::event_type::EventType;
 use crate::models::location::Location;
 use crate::ui::messages::success;
-use chrono::{NaiveDate, NaiveTime};
+use chrono::{NaiveDate, NaiveTime, Timelike};
 use rusqlite::params;
 
 /// High-level business logic for the `add` command.
@@ -20,9 +22,42 @@ fn upsert_event(conn: &rusqlite::Connection, ev: &Event) -> AppResult<()> {
     Ok(())
 }
 
+fn build_event_cli(
+    date: NaiveDate,
+    time: NaiveTime,
+    kind: EventType,
+    location: Location,
+    event_extras: EventExtras,
+) -> Event {
+    Event::new(0, date, time, kind, location, event_extras)
+}
+
+fn extras_cli(lunch: Option<i32>, work_gap: bool) -> EventExtras {
+    EventExtras {
+        lunch,
+        work_gap,
+        source: Some("cli".to_string()),
+        meta: None,
+        ..Default::default()
+    }
+}
+
+fn upsert_event_time(
+    slot: &mut Option<Event>,
+    date: NaiveDate,
+    time: NaiveTime,
+    kind: EventType,
+    location: Location,
+    extras: EventExtras,
+) {
+    let e = slot.get_or_insert_with(|| build_event_cli(date, time, kind, location, extras));
+    e.time = time;
+}
+
 impl AddLogic {
     #[allow(clippy::too_many_arguments)]
     pub fn apply(
+        cfg: &Config,
         pool: &mut DbPool,
         date: NaiveDate,
         position: Location,
@@ -67,47 +102,28 @@ impl AddLogic {
             }
 
             // IN time
+            // IN time
             if let Some(start_time) = start {
-                if let Some(ref mut e) = ev_in {
-                    e.time = start_time;
-                } else {
-                    ev_in = Some(Event::new(
-                        0,
-                        date,
-                        start_time,
-                        EventType::In,
-                        pos_final,
-                        EventExtras {
-                            lunch, // if user passed --lunch in edit mode, keep it on IN creation
-                            work_gap: false,
-                            source: Some("cli".to_string()),
-                            meta: None,
-                            ..Default::default()
-                        },
-                    ));
-                }
+                upsert_event_time(
+                    &mut ev_in,
+                    date,
+                    start_time,
+                    EventType::In,
+                    pos_final,
+                    extras_cli(lunch, false),
+                );
             }
 
             // OUT time
             if let Some(end_time) = end {
-                if let Some(ref mut e) = ev_out {
-                    e.time = end_time;
-                } else {
-                    ev_out = Some(Event::new(
-                        0,
-                        date,
-                        end_time,
-                        EventType::Out,
-                        pos_final,
-                        EventExtras {
-                            lunch: Some(0),
-                            work_gap: false,
-                            source: Some("cli".to_string()),
-                            meta: None,
-                            ..Default::default()
-                        },
-                    ));
-                }
+                upsert_event_time(
+                    &mut ev_out,
+                    date,
+                    end_time,
+                    EventType::Out,
+                    pos_final,
+                    extras_cli(Some(0), false), // se vuoi preservare la tua semantica OUT default
+                );
             }
 
             // LUNCH (applies to OUT; coherent with your current model)
@@ -188,19 +204,12 @@ impl AddLogic {
             let holiday_time = NaiveTime::from_hms_opt(0, 0, 0)
                 .ok_or_else(|| AppError::Other("Invalid holiday time sentinel.".into()))?;
 
-            let ev_holiday = Event::new(
-                0,
+            let ev_holiday = build_event_cli(
                 date,
                 holiday_time,
-                EventType::In, // sentinel kind
+                EventType::In,
                 pos_final,
-                EventExtras {
-                    lunch: Some(0),
-                    work_gap: false,
-                    source: Some("cli".to_string()),
-                    meta: None,
-                    ..Default::default()
-                },
+                extras_cli(lunch, false),
             );
 
             insert_event(&pool.conn, &ev_holiday)?;
@@ -254,25 +263,31 @@ impl AddLogic {
         if let Some(start_time) = start
             && end.is_none()
         {
-            let ev_in = Event::new(
-                0,
+            let ev_in = build_event_cli(
                 date,
                 start_time,
                 EventType::In,
                 pos_final,
-                EventExtras {
-                    lunch: Some(lunch_val),
-                    work_gap: false,
-                    source: Some("cli".to_string()),
-                    meta: None,
-                    ..Default::default()
-                },
+                extras_cli(lunch, false),
             );
 
             insert_event(&pool.conn, &ev_in)?;
             crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
 
-            success(format!("Added IN at {} on {}.", start_time, date_str));
+            // --- Compute TGT (same logic as list: uses summary.expected) ---
+            let events_after = load_events_by_date(pool, &date)?;
+            let summary = Core::build_daily_summary(&events_after, cfg);
+
+            let tgt_time = start_time + chrono::Duration::minutes(summary.expected);
+
+            // Usa helper esistente: minuti da mezzanotte -> "HH:MM"
+            let tgt_mins = (tgt_time.hour() as i64) * 60 + (tgt_time.minute() as i64);
+            let tgt_str = crate::utils::time::format_minutes(tgt_mins);
+
+            success(format!(
+                "✅ Added IN at {} on {}. TGT => {}",
+                start_time, date_str, tgt_str
+            ));
             return Ok(());
         }
 
@@ -302,19 +317,12 @@ impl AddLogic {
                 last_in.location
             };
 
-            let ev_out = Event::new(
-                0,
+            let ev_out = build_event_cli(
                 date,
                 end_time,
                 EventType::Out,
                 out_position,
-                EventExtras {
-                    lunch: Some(lunch_val),
-                    work_gap: wg,
-                    source: Some("cli".to_string()),
-                    meta: None,
-                    ..Default::default()
-                },
+                extras_cli(lunch, false),
             );
 
             insert_event(&pool.conn, &ev_out)?;
@@ -333,34 +341,20 @@ impl AddLogic {
                 return Err(AppError::InvalidArgs("END must be later than IN.".into()));
             }
 
-            let ev_in = Event::new(
-                0,
+            let ev_in = build_event_cli(
                 date,
                 start_time,
                 EventType::In,
                 pos_final,
-                EventExtras {
-                    lunch: Some(lunch_val),
-                    work_gap: false,
-                    source: Some("cli".to_string()),
-                    meta: None,
-                    ..Default::default()
-                },
+                extras_cli(lunch, false),
             );
 
-            let ev_out = Event::new(
-                0,
+            let ev_out = build_event_cli(
                 date,
                 end_time,
                 EventType::Out,
                 pos_final,
-                EventExtras {
-                    lunch: Some(0),
-                    work_gap: wg,
-                    source: Some("cli".to_string()),
-                    meta: None,
-                    ..Default::default()
-                },
+                extras_cli(lunch, false),
             );
 
             insert_event(&pool.conn, &ev_in)?;

@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.8.5 — 2026-01-13
+
+### Added
+
+- Enhanced `add` command to display the calculated target exit time (TGT)
+  immediately after adding an IN event.
+
+### Changed
+
+- Unified IN and OUT event creation through a shared CLI helper.
+- Removed duplicated upsert logic in edit and insert modes.
+- Reused existing time formatting utilities for target time rendering.
+
+### Internal
+
+- Refactored `add` command logic to improve readability and maintainability
+  without changing existing behavior.
+
+---
+
 ## v0.8.4 — 2026-01-09
 
 ### Changed
