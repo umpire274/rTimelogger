@@ -107,11 +107,11 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
         let sick_range = validate_sickleave_args(pos_final, Some(d), *to)?;
 
         match sick_range {
-            Some((from_date, to_date)) => {
+            Some((_from_date, to_date)) => {
                 // (opzionale ma consigliato) vieta start/end nel range malattia
                 if start_parsed.is_some() || end_parsed.is_some() {
                     return Err(AppError::InvalidArgs(
-                        "--start/--end cannot be used with --pos s (use only --to)".into(),
+                        "--in/--out cannot be used with --pos s (use only --to)".into(),
                     ));
                 }
 
@@ -126,7 +126,6 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
                     None,
                     *edit,
                     *edit_pair,
-                    Some(from_date),
                     Some(to_date),
                     pos.clone(),
                 )?;
@@ -143,7 +142,6 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
                     end_parsed,
                     *edit,
                     *edit_pair,
-                    None,
                     None,
                     pos.clone(),
                 )?;

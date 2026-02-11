@@ -9,6 +9,7 @@ use crate::models::event::{Event, EventExtras};
 use crate::models::event_type::EventType;
 use crate::models::location::Location;
 use crate::ui::messages::success;
+use crate::utils::date::{is_national_holiday, is_weekend};
 use chrono::{NaiveDate, NaiveTime, Timelike};
 use rusqlite::params;
 
@@ -69,7 +70,6 @@ impl AddLogic {
         end: Option<NaiveTime>,
         edit_mode: bool,
         edit_pair: Option<usize>,
-        from: Option<NaiveDate>,
         to: Option<NaiveDate>,
         pos: Option<String>,
     ) -> AppResult<()> {
@@ -89,8 +89,8 @@ impl AddLogic {
         // ------------------------------------------------
         // Sanity: range args only allowed for SickLeave
         // ------------------------------------------------
-        let range = match (from, to) {
-            (Some(f), Some(t)) => {
+        let range = match (date, to) {
+            (f, Some(t)) => {
                 if pos_final != Location::SickLeave {
                     return Err(AppError::InvalidArgs(
                         "--from/--to can only be used with --pos Malattia".into(),
@@ -102,12 +102,7 @@ impl AddLogic {
                 }
                 Some((f, t))
             }
-            (None, None) => None,
-            _ => {
-                return Err(AppError::InvalidArgs(
-                    "Both --from and --to must be provided together.".into(),
-                ));
-            }
+            (_null, None) => None,
         };
 
         // ------------------------------------------------
@@ -223,19 +218,14 @@ impl AddLogic {
             }
 
             // Range: if omitted -> single-day (date,date)
-            let (from_date, to_date) = match (from, to) {
-                (Some(f), Some(t)) => {
+            let (date, to_date) = match (date, to) {
+                (f, Some(t)) => {
                     if f > t {
                         return Err(AppError::InvalidDateRange { from: f, to: t });
                     }
                     (f, t)
                 }
-                (None, None) => (date, date),
-                _ => {
-                    return Err(AppError::InvalidArgs(
-                        "Both --from and --to must be provided together.".into(),
-                    ));
-                }
+                (_null, None) => (date, date),
             };
 
             // Sentinel time (00:00) like holiday
@@ -244,9 +234,32 @@ impl AddLogic {
 
             let tx = pool.conn.transaction()?;
 
-            let mut day = from_date;
+            let mut inserted = 0usize;
+            let mut skipped_weekend = 0usize;
+            let mut skipped_national = 0usize;
+            let mut skipped_existing = 0usize;
+
+            let mut day = date;
             while day <= to_date {
-                // Check existing events on that day (fail fast)
+                // 1) weekend -> skip
+                if is_weekend(day) {
+                    skipped_weekend += 1;
+                    day = day
+                        .succ_opt()
+                        .ok_or_else(|| AppError::Other("Invalid date increment.".into()))?;
+                    continue;
+                }
+
+                // 2) national holiday -> skip
+                if is_national_holiday(&tx, day)? {
+                    skipped_national += 1;
+                    day = day
+                        .succ_opt()
+                        .ok_or_else(|| AppError::Other("Invalid date increment.".into()))?;
+                    continue;
+                }
+
+                // 3) already has events -> skip
                 let day_str = day.to_string();
                 let exists: i64 = tx.query_row(
                     "SELECT EXISTS(SELECT 1 FROM events WHERE date = ?1 LIMIT 1)",
@@ -254,15 +267,17 @@ impl AddLogic {
                     |r| r.get(0),
                 )?;
                 if exists == 1 {
-                    return Err(AppError::InvalidArgs(format!(
-                        "Cannot set Sick Leave on {}: the date already has events.",
-                        day
-                    )));
+                    skipped_existing += 1;
+                    day = day
+                        .succ_opt()
+                        .ok_or_else(|| AppError::Other("Invalid date increment.".into()))?;
+                    continue;
                 }
 
+                // 4) insert marker
                 let ev = build_event_cli(
                     day,
-                    marker_time,
+                    marker_time, // 00:00
                     EventType::In,
                     Location::SickLeave,
                     extras_cli(Some(0), false),
@@ -270,6 +285,7 @@ impl AddLogic {
 
                 insert_event(&tx, &ev)?;
                 recalc_pairs_for_date(&tx, &day)?;
+                inserted += 1;
 
                 day = day
                     .succ_opt()
@@ -278,17 +294,22 @@ impl AddLogic {
 
             tx.commit()?;
 
-            if from_date == to_date {
-                success(format!("Added SICK LEAVE on {}.\n", from_date));
+            // output summary
+            if to_date == date {
+                if inserted == 1 {
+                    success(format!("Added SICK LEAVE on {}.\n", date));
+                } else {
+                    success(format!(
+                        "No Sick Leave inserted on {} (skipped: weekend={}, national_holiday={}, existing_events={}).\n",
+                        date, skipped_weekend, skipped_national, skipped_existing
+                    ));
+                }
             } else {
                 success(format!(
-                    "Added SICK LEAVE from {} to {} ({} days).\n",
-                    from_date,
-                    to_date,
-                    (to_date - from_date).num_days() + 1
+                    "SICK LEAVE range {} → {}: inserted={}, skipped (weekend={}, national_holiday={}, existing_events={}).\n",
+                    date, to_date, inserted, skipped_weekend, skipped_national, skipped_existing
                 ));
             }
-
             return Ok(());
         }
 
