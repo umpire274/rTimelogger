@@ -495,7 +495,12 @@ fn print_daily_row(
     let mut surplus_display = "-".to_string();
     let mut surplus_color = colors::GREY;
 
-    if day_position != Location::Holiday && day_position != Location::NationalHoliday {
+    let is_marker_day = matches!(
+        day_position,
+        Location::Holiday | Location::NationalHoliday | Location::SickLeave
+    );
+
+    if !is_marker_day {
         let first_in = timeline.pairs[0].in_event.timestamp();
         first_in_str = first_in.format("%H:%M").to_string();
 

@@ -2,6 +2,7 @@
 //! All modules (db, core, cli, utils) return AppError to keep the error
 //! handling consistent and easy to manage.
 
+use chrono::NaiveDate;
 use std::io;
 use thiserror::Error;
 
@@ -39,6 +40,9 @@ pub enum AppError {
 
     #[error("Invalid operation mode: {0}")]
     InvalidOperation(String),
+
+    #[error("Invalid date range: from ({from}) must be <= to ({to})")]
+    InvalidDateRange { from: NaiveDate, to: NaiveDate },
 
     // ---------------------------
     // Logic errors

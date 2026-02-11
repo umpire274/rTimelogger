@@ -77,8 +77,8 @@ pub fn generate_all_dates() -> Result<Vec<NaiveDate>, String> {
     Ok(all_days_of_year(today().year()))
 }
 
-pub fn parse_date(s: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
+pub fn parse_date(s: &str) -> Result<NaiveDate, String> {
+    NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|e| format!("Invalid date '{}': {}", s, e))
 }
 
 /// Nome mese in inglese (per header stile 0.7.7)

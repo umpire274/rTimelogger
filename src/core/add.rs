@@ -1,7 +1,9 @@
 use crate::config::Config;
 use crate::core::logic::Core;
 use crate::db::pool::DbPool;
-use crate::db::queries::{insert_event, load_events_by_date, load_pair_by_index};
+use crate::db::queries::{
+    insert_event, load_events_by_date, load_pair_by_index, recalc_pairs_for_date,
+};
 use crate::errors::{AppError, AppResult};
 use crate::models::event::{Event, EventExtras};
 use crate::models::event_type::EventType;
@@ -67,6 +69,8 @@ impl AddLogic {
         end: Option<NaiveTime>,
         edit_mode: bool,
         edit_pair: Option<usize>,
+        from: Option<NaiveDate>,
+        to: Option<NaiveDate>,
         pos: Option<String>,
     ) -> AppResult<()> {
         // ------------------------------------------------
@@ -75,7 +79,7 @@ impl AddLogic {
         let pos_final = match &pos {
             Some(code) => Location::from_code(code).ok_or_else(|| {
                 AppError::InvalidPosition(format!(
-                    "Invalid location code '{}'. Use a valid code such as 'O', 'R', 'H', 'N', 'C', 'M'.",
+                    "Invalid location code '{}'. Use a valid code such as 'O', 'R', 'H', 'N', 'C', 'M', 'S'.",
                     code
                 ))
             })?,
@@ -83,9 +87,39 @@ impl AddLogic {
         };
 
         // ------------------------------------------------
+        // Sanity: range args only allowed for SickLeave
+        // ------------------------------------------------
+        let range = match (from, to) {
+            (Some(f), Some(t)) => {
+                if pos_final != Location::SickLeave {
+                    return Err(AppError::InvalidArgs(
+                        "--from/--to can only be used with --pos Malattia".into(),
+                    ));
+                }
+                if f > t {
+                    // se hai questa variante tipizzata, usa quella; altrimenti InvalidArgs
+                    return Err(AppError::InvalidDateRange { from: f, to: t });
+                }
+                Some((f, t))
+            }
+            (None, None) => None,
+            _ => {
+                return Err(AppError::InvalidArgs(
+                    "Both --from and --to must be provided together.".into(),
+                ));
+            }
+        };
+
+        // ------------------------------------------------
         // 1️⃣ EDIT MODE
         // ------------------------------------------------
         if edit_mode {
+            if range.is_some() {
+                return Err(AppError::InvalidArgs(
+                    "--from/--to cannot be used with --edit.".into(),
+                ));
+            }
+
             let pair_num = edit_pair
                 .ok_or_else(|| AppError::InvalidArgs("Missing --pair when using --edit.".into()))?;
 
@@ -101,7 +135,6 @@ impl AddLogic {
                 }
             }
 
-            // IN time
             // IN time
             if let Some(start_time) = start {
                 upsert_event_time(
@@ -122,11 +155,11 @@ impl AddLogic {
                     end_time,
                     EventType::Out,
                     pos_final,
-                    extras_cli(Some(0), false), // se vuoi preservare la tua semantica OUT default
+                    extras_cli(Some(0), false),
                 );
             }
 
-            // LUNCH (applies to OUT; coherent with your current model)
+            // LUNCH (applies to OUT)
             if let Some(lunch_val) = lunch
                 && let Some(ref mut e) = ev_out
             {
@@ -152,7 +185,7 @@ impl AddLogic {
                 upsert_event(&pool.conn, e)?;
             }
 
-            crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
+            recalc_pairs_for_date(&pool.conn, &date)?;
 
             let (icon, msg) = match work_gap {
                 Some(true) => ("🔗", "Work gap enabled"),
@@ -169,13 +202,9 @@ impl AddLogic {
         // ------------------------------------------------
 
         let lunch_val = lunch.unwrap_or(0);
-        let date_str = date.to_string();
         let wg = work_gap.unwrap_or(false);
 
-        let events_today = load_events_by_date(pool, &date)?;
-        let has_events = !events_today.is_empty();
-
-        // --work-gap valid only with OUT
+        // --work-gap valid only with OUT present
         if wg && end.is_none() {
             return Err(AppError::InvalidArgs(
                 "--work-gap can only be used when adding an OUT event.".into(),
@@ -183,24 +212,115 @@ impl AddLogic {
         }
 
         // ------------------------------------------------
+        // ✅ CASE: SickLeave marker day (like Holiday)
+        // ------------------------------------------------
+        if pos_final == Location::SickLeave {
+            // Marker day: do not accept time/lunch/work-gap args
+            if start.is_some() || end.is_some() || lunch.is_some() || work_gap.is_some() {
+                return Err(AppError::InvalidArgs(
+                    "For Sick Leave do not specify --in, --out, --lunch or --work-gap.".into(),
+                ));
+            }
+
+            // Range: if omitted -> single-day (date,date)
+            let (from_date, to_date) = match (from, to) {
+                (Some(f), Some(t)) => {
+                    if f > t {
+                        return Err(AppError::InvalidDateRange { from: f, to: t });
+                    }
+                    (f, t)
+                }
+                (None, None) => (date, date),
+                _ => {
+                    return Err(AppError::InvalidArgs(
+                        "Both --from and --to must be provided together.".into(),
+                    ));
+                }
+            };
+
+            // Sentinel time (00:00) like holiday
+            let marker_time = NaiveTime::from_hms_opt(0, 0, 0)
+                .ok_or_else(|| AppError::Other("Invalid Sick Leave time sentinel.".into()))?;
+
+            let tx = pool.conn.transaction()?;
+
+            let mut day = from_date;
+            while day <= to_date {
+                // Check existing events on that day (fail fast)
+                let day_str = day.to_string();
+                let exists: i64 = tx.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM events WHERE date = ?1 LIMIT 1)",
+                    rusqlite::params![day_str],
+                    |r| r.get(0),
+                )?;
+                if exists == 1 {
+                    return Err(AppError::InvalidArgs(format!(
+                        "Cannot set Sick Leave on {}: the date already has events.",
+                        day
+                    )));
+                }
+
+                let ev = build_event_cli(
+                    day,
+                    marker_time,
+                    EventType::In,
+                    Location::SickLeave,
+                    extras_cli(Some(0), false),
+                );
+
+                insert_event(&tx, &ev)?;
+                recalc_pairs_for_date(&tx, &day)?;
+
+                day = day
+                    .succ_opt()
+                    .ok_or_else(|| AppError::Other("Invalid date increment.".into()))?;
+            }
+
+            tx.commit()?;
+
+            if from_date == to_date {
+                success(format!("Added SICK LEAVE on {}.", from_date));
+            } else {
+                success(format!(
+                    "Added SICK LEAVE from {} to {} ({} days).",
+                    from_date,
+                    to_date,
+                    (to_date - from_date).num_days() + 1
+                ));
+            }
+
+            return Ok(());
+        }
+
+        // ------------------------------------------------
+        // Events for the single day (normal flow)
+        // ------------------------------------------------
+        let date_str = date.to_string();
+        let events_today = load_events_by_date(pool, &date)?;
+        let has_events = !events_today.is_empty();
+
+        // ------------------------------------------------
         // ✅ CASE: Holiday / NationalHoliday marker day
         // ------------------------------------------------
         if pos_final == Location::Holiday || pos_final == Location::NationalHoliday {
             // Marker day: do not accept time/lunch/work-gap args
-            if start.is_some() || end.is_some() || lunch.is_some() || work_gap.is_some() {
+            if start.is_some()
+                || end.is_some()
+                || lunch.is_some()
+                || work_gap.is_some()
+                || range.is_some()
+            {
                 return Err(AppError::InvalidArgs(
-                    "For holiday days do not specify --in, --out, --lunch or --work-gap.".into(),
+                    "For holiday days do not specify --start, --end, --lunch, --work-gap, --from or --to.".into(),
                 ));
             }
 
-            // If there are already events, it's inconsistent to mark holiday
             if has_events {
                 return Err(AppError::InvalidArgs(
                     "Cannot set a holiday marker on a date that already has events.".into(),
                 ));
             }
 
-            // Sentinel event at 00:00
             let holiday_time = NaiveTime::from_hms_opt(0, 0, 0)
                 .ok_or_else(|| AppError::Other("Invalid holiday time sentinel.".into()))?;
 
@@ -213,7 +333,7 @@ impl AddLogic {
             );
 
             insert_event(&pool.conn, &ev_holiday)?;
-            crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
+            recalc_pairs_for_date(&pool.conn, &date)?;
 
             success(match pos_final {
                 Location::Holiday => format!("Added HOLIDAY on {}.", date_str),
@@ -225,6 +345,11 @@ impl AddLogic {
 
         // CASE A: only lunch update
         if start.is_none() && end.is_none() && lunch.is_some() {
+            if range.is_some() {
+                return Err(AppError::InvalidArgs(
+                    "--from/--to are not valid for lunch-only updates.".into(),
+                ));
+            }
             if !has_events {
                 return Err(AppError::InvalidArgs(
                     "Cannot set lunch on a date with no events.".into(),
@@ -233,15 +358,15 @@ impl AddLogic {
 
             pool.conn.execute(
                 r#"
-                UPDATE events
-                SET lunch_break = ?1
-                WHERE id = (
-                    SELECT id FROM events
-                    WHERE date = ?2
-                    ORDER BY time DESC
-                    LIMIT 1
-                )
-                "#,
+            UPDATE events
+            SET lunch_break = ?1
+            WHERE id = (
+                SELECT id FROM events
+                WHERE date = ?2
+                ORDER BY time DESC
+                LIMIT 1
+            )
+            "#,
                 params![lunch_val, &date_str],
             )?;
 
@@ -255,7 +380,7 @@ impl AddLogic {
         // CASE B: nothing to do
         if start.is_none() && end.is_none() {
             return Err(AppError::InvalidArgs(
-                "Nothing to do: specify at least --in, --out or --lunch.".into(),
+                "Nothing to do: specify at least --start, --end or --lunch.".into(),
             ));
         }
 
@@ -263,6 +388,12 @@ impl AddLogic {
         if let Some(start_time) = start
             && end.is_none()
         {
+            if range.is_some() {
+                return Err(AppError::InvalidArgs(
+                    "--from/--to require --pos Malattia.".into(),
+                ));
+            }
+
             let ev_in = build_event_cli(
                 date,
                 start_time,
@@ -272,15 +403,13 @@ impl AddLogic {
             );
 
             insert_event(&pool.conn, &ev_in)?;
-            crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
+            recalc_pairs_for_date(&pool.conn, &date)?;
 
-            // --- Compute TGT (same logic as list: uses summary.expected) ---
             let events_after = load_events_by_date(pool, &date)?;
             let summary = Core::build_daily_summary(&events_after, cfg);
 
             let tgt_time = start_time + chrono::Duration::minutes(summary.expected);
 
-            // Usa helper esistente: minuti da mezzanotte -> "HH:MM"
             let tgt_mins = (tgt_time.hour() as i64) * 60 + (tgt_time.minute() as i64);
             let tgt_str = crate::utils::time::format_minutes(tgt_mins);
 
@@ -295,6 +424,12 @@ impl AddLogic {
         if start.is_none()
             && let Some(end_time) = end
         {
+            if range.is_some() {
+                return Err(AppError::InvalidArgs(
+                    "--from/--to require --pos Malattia.".into(),
+                ));
+            }
+
             let last_in = events_today
                 .iter()
                 .rev()
@@ -317,7 +452,7 @@ impl AddLogic {
                 last_in.location
             };
 
-            let ev_out = build_event_cli(
+            let mut ev_out = build_event_cli(
                 date,
                 end_time,
                 EventType::Out,
@@ -325,8 +460,12 @@ impl AddLogic {
                 extras_cli(lunch, false),
             );
 
+            if let Some(wg_explicit) = work_gap {
+                ev_out.work_gap = wg_explicit;
+            }
+
             insert_event(&pool.conn, &ev_out)?;
-            crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
+            recalc_pairs_for_date(&pool.conn, &date)?;
 
             success(format!(
                 "Added OUT on {} ({} → {}).",
@@ -337,6 +476,12 @@ impl AddLogic {
 
         // CASE E: full pair
         if let (Some(start_time), Some(end_time)) = (start, end) {
+            if range.is_some() {
+                return Err(AppError::InvalidArgs(
+                    "--from/--to require --pos Malattia.".into(),
+                ));
+            }
+
             if end_time <= start_time {
                 return Err(AppError::InvalidArgs("END must be later than IN.".into()));
             }
@@ -349,7 +494,7 @@ impl AddLogic {
                 extras_cli(lunch, false),
             );
 
-            let ev_out = build_event_cli(
+            let mut ev_out = build_event_cli(
                 date,
                 end_time,
                 EventType::Out,
@@ -357,9 +502,13 @@ impl AddLogic {
                 extras_cli(lunch, false),
             );
 
+            if let Some(wg_explicit) = work_gap {
+                ev_out.work_gap = wg_explicit;
+            }
+
             insert_event(&pool.conn, &ev_in)?;
             insert_event(&pool.conn, &ev_out)?;
-            crate::db::queries::recalc_pairs_for_date(&mut pool.conn, &date)?;
+            recalc_pairs_for_date(&pool.conn, &date)?;
 
             success(format!(
                 "Added IN/OUT pair on {}: {} → {}.",

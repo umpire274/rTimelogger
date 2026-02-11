@@ -1,4 +1,6 @@
 use crate::export::ExportFormat;
+use crate::utils::date::parse_date;
+use chrono::NaiveDate;
 use clap::{Parser, Subcommand};
 
 /// Command-line interface definition for rTimelogger
@@ -78,10 +80,10 @@ pub enum Commands {
         /// Date of the event (YYYY-MM-DD)
         date: String,
 
-        /// Position (O = Office, R = Remote, H = Holiday, C = Client, M = Mixed)
+        /// Position (O = Office, R = Remote, H = Holiday, N = National Holiday, C = Client, M = Mixed, S = Sick Leave)
         #[arg(
             long = "pos",
-            help = "Work position: O=Office, R=Remote, H=Holiday, C=Client, M=Mixed"
+            help = "Work position: O=Office, R=Remote, H=Holiday, N=National Holiday, C=Client, M=Mixed, S=Sick Leave"
         )]
         pos: Option<String>,
 
@@ -124,6 +126,14 @@ pub enum Commands {
             help = "Edit existing pair instead of creating a new one"
         )]
         edit: bool,
+
+        /// Start date (YYYY-MM-DD). Only valid with --pos Malattia.
+        #[arg(long, value_parser = parse_date)]
+        from: Option<NaiveDate>,
+
+        /// End date (YYYY-MM-DD). Only valid with --pos Malattia.
+        #[arg(long, value_parser = parse_date)]
+        to: Option<NaiveDate>,
     },
 
     /// Delete a work session by ID

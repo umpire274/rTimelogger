@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.8.6] - 2026-02-10
+
+### Added
+
+- New `Sick Leave` position (`--pos s`)
+- Support for optional date range with `--from` and `--to` (usable only with `--pos s`)
+- Marker-day logic for Sick Leave (stored as sentinel event at 00:00, similar to Holiday)
+
+### Changed
+
+- `Sick Leave` is now treated as a non-working marker day:
+    - No IN/OUT times displayed in `list`
+    - No contribution to daily or monthly ΔWORK totals
+    - No target (TGT) calculation
+- Validation updated:
+    - `--from/--to` allowed only with `--pos s`
+    - If omitted, `--pos s` applies to the provided date only
+- Refactored `apply()` logic for cleaner separation between:
+    - marker days (Holiday, NationalHoliday, SickLeave)
+    - working days
+- `recalc_pairs_for_date` signature updated to accept `&Connection`
+  (allows usage inside transactions)
+
+### Fixed
+
+- Prevented incorrect IN/OUT display (`00:00`) for Sick Leave in `list`
+- Prevented unintended ΔWORK surplus calculation for Sick Leave days
+- Improved argument validation consistency in `add` command
+
+---
+
 ## v0.8.5 — 2026-01-13
 
 ### Added

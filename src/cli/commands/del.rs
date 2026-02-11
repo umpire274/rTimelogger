@@ -28,7 +28,8 @@ pub fn handle(cmd: &Commands, cfg: &Config) -> AppResult<()> {
         date: date_str,
     } = cmd
     {
-        let d = date::parse_date(date_str).ok_or_else(|| AppError::InvalidDate(date_str.into()))?;
+        let d =
+            date::parse_date(date_str).map_err(|_| AppError::InvalidDate(date_str.to_string()))?;
 
         //
         // Confirmation prompt

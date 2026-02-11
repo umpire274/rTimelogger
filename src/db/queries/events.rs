@@ -179,3 +179,13 @@ pub fn load_pair_by_index(
 
     Ok(pairs[idx].clone())
 }
+
+pub fn date_has_events(conn: &Connection, date: &NaiveDate) -> AppResult<bool> {
+    let date_str = date.to_string();
+    let exists: i64 = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM events WHERE date = ?1 LIMIT 1)",
+        rusqlite::params![date_str],
+        |r| r.get(0),
+    )?;
+    Ok(exists == 1)
+}
