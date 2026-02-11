@@ -79,7 +79,7 @@ impl AddLogic {
         let pos_final = match &pos {
             Some(code) => Location::from_code(code).ok_or_else(|| {
                 AppError::InvalidPosition(format!(
-                    "Invalid location code '{}'. Use a valid code such as 'O', 'R', 'H', 'N', 'C', 'M', 'S'.",
+                    "Invalid location code '{}'. Use a valid code such as 'O', 'R', 'H', 'N', 'C', 'M', 'S'.\n",
                     code
                 ))
             })?,
@@ -193,7 +193,7 @@ impl AddLogic {
                 None => ("✏️", "Pair updated"),
             };
 
-            success(format!("{} {} for pair {}.", icon, msg, pair_num));
+            success(format!("{} {} for pair {}.\n", icon, msg, pair_num));
             return Ok(());
         }
 
@@ -279,10 +279,10 @@ impl AddLogic {
             tx.commit()?;
 
             if from_date == to_date {
-                success(format!("Added SICK LEAVE on {}.", from_date));
+                success(format!("Added SICK LEAVE on {}.\n", from_date));
             } else {
                 success(format!(
-                    "Added SICK LEAVE from {} to {} ({} days).",
+                    "Added SICK LEAVE from {} to {} ({} days).\n",
                     from_date,
                     to_date,
                     (to_date - from_date).num_days() + 1
@@ -336,8 +336,8 @@ impl AddLogic {
             recalc_pairs_for_date(&pool.conn, &date)?;
 
             success(match pos_final {
-                Location::Holiday => format!("Added HOLIDAY on {}.", date_str),
-                Location::NationalHoliday => format!("Added NATIONAL HOLIDAY on {}.", date_str),
+                Location::Holiday => format!("Added HOLIDAY on {}.\n", date_str),
+                Location::NationalHoliday => format!("Added NATIONAL HOLIDAY on {}.\n", date_str),
                 _ => unreachable!(),
             });
             return Ok(());
@@ -371,7 +371,7 @@ impl AddLogic {
             )?;
 
             success(format!(
-                "Lunch updated to {} minutes for {}.",
+                "Lunch updated to {} minutes for {}.\n",
                 lunch_val, date_str
             ));
             return Ok(());
@@ -414,7 +414,7 @@ impl AddLogic {
             let tgt_str = crate::utils::time::format_minutes(tgt_mins);
 
             success(format!(
-                "Added IN at {} on {}. TGT => {}",
+                "Added IN at {} on {}. TGT => {}\n",
                 start_time, date_str, tgt_str
             ));
             return Ok(());
@@ -468,7 +468,7 @@ impl AddLogic {
             recalc_pairs_for_date(&pool.conn, &date)?;
 
             success(format!(
-                "Added OUT on {} ({} → {}).",
+                "Added OUT on {} ({} → {}).\n",
                 date_str, last_in.time, end_time
             ));
             return Ok(());
@@ -511,7 +511,7 @@ impl AddLogic {
             recalc_pairs_for_date(&pool.conn, &date)?;
 
             success(format!(
-                "Added IN/OUT pair on {}: {} → {}.",
+                "Added IN/OUT pair on {}: {} → {}.\n",
                 date_str, start_time, end_time
             ));
             return Ok(());

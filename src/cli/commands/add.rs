@@ -9,25 +9,30 @@ use chrono::NaiveDate;
 
 fn validate_sickleave_args(
     pos: Location,
-    from: Option<NaiveDate>,
+    date: Option<NaiveDate>, // di fatto: Some(d)
     to: Option<NaiveDate>,
 ) -> Result<Option<(NaiveDate, NaiveDate)>, AppError> {
-    match (from, to) {
-        (Some(f), Some(t)) => {
-            if pos != Location::SickLeave {
+    let d = match date {
+        Some(d) => d,
+        None => return Ok(None), // difensivo, ma nel tuo handle passi sempre Some(d)
+    };
+
+    match pos {
+        Location::SickLeave => {
+            let t = to.unwrap_or(d);
+            if d > t {
+                return Err(AppError::InvalidDateRange { from: d, to: t });
+            }
+            Ok(Some((d, t)))
+        }
+        _ => {
+            if to.is_some() {
                 return Err(AppError::InvalidArgs(
-                    "--from/--to can only be used with --pos s".into(),
+                    "--to can only be used with --pos s".into(),
                 ));
             }
-            if f > t {
-                return Err(AppError::InvalidDateRange { from: f, to: t });
-            }
-            Ok(Some((f, t)))
+            Ok(None)
         }
-        (None, None) => Ok(None),
-        _ => Err(AppError::InvalidArgs(
-            "Both --from and --to must be provided together.".into(),
-        )),
     }
 }
 
@@ -43,7 +48,6 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
         end,
         edit_pair,
         edit,
-        from,
         to,
     } = cmd
     {
@@ -100,32 +104,26 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
         //
         // 7. SickLeave range validation (only if pos == SickLeave or from/to used)
         //
-        let sick_range = validate_sickleave_args(pos_final, *from, *to)?;
+        let sick_range = validate_sickleave_args(pos_final, Some(d), *to)?;
 
         match sick_range {
             Some((from_date, to_date)) => {
-                let default_in = chrono::NaiveTime::from_hms_opt(9, 0, 0).unwrap();
-                let default_out = chrono::NaiveTime::from_hms_opt(18, 0, 0).unwrap();
-
                 // (opzionale ma consigliato) vieta start/end nel range malattia
                 if start_parsed.is_some() || end_parsed.is_some() {
                     return Err(AppError::InvalidArgs(
-                        "--start/--end cannot be used with --pos s (use only --from/--to)".into(),
+                        "--start/--end cannot be used with --pos s (use only --to)".into(),
                     ));
                 }
-
-                let s = start_parsed.unwrap_or(default_in);
-                let e = end_parsed.unwrap_or(default_out);
 
                 AddLogic::apply(
                     cfg,
                     &mut pool,
                     d,
                     pos_final,
-                    Some(s),
-                    lunch_opt,
-                    work_gap,
-                    Some(e),
+                    None,
+                    None,
+                    None,
+                    None,
                     *edit,
                     *edit_pair,
                     Some(from_date),

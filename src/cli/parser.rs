@@ -127,10 +127,6 @@ pub enum Commands {
         )]
         edit: bool,
 
-        /// Start date (YYYY-MM-DD). Only valid with --pos Malattia.
-        #[arg(long, value_parser = parse_date)]
-        from: Option<NaiveDate>,
-
         /// End date (YYYY-MM-DD). Only valid with --pos Malattia.
         #[arg(long, value_parser = parse_date)]
         to: Option<NaiveDate>,

@@ -4,30 +4,25 @@
 
 ### Added
 
-- New `Sick Leave` position (`--pos s`)
-- Support for optional date range with `--from` and `--to` (usable only with `--pos s`)
-- Marker-day logic for Sick Leave (stored as sentinel event at 00:00, similar to Holiday)
+- New position: `Sick Leave` (`--pos s`)
+- Optional Sick Leave range support via `--to` (start date is the command `DATE`)
 
 ### Changed
 
-- `Sick Leave` is now treated as a non-working marker day:
-    - No IN/OUT times displayed in `list`
-    - No contribution to daily or monthly ΔWORK totals
-    - No target (TGT) calculation
-- Validation updated:
-    - `--from/--to` allowed only with `--pos s`
-    - If omitted, `--pos s` applies to the provided date only
-- Refactored `apply()` logic for cleaner separation between:
-    - marker days (Holiday, NationalHoliday, SickLeave)
-    - working days
-- `recalc_pairs_for_date` signature updated to accept `&Connection`
-  (allows usage inside transactions)
+- Sick Leave is stored as a non-working marker day (sentinel event at `00:00`, similar to Holiday)
+- `list` rendering updated for Sick Leave marker days:
+    - IN/OUT/TGT shown as `--:--`
+    - ΔWORK does not contribute to daily/monthly totals
+- CLI validation updated:
+    - `--to` is only allowed with `--pos s`
+    - If `--to` is omitted, Sick Leave applies to the single `DATE`
+- Migration updated to support `S` position in `events.position` CHECK constraint
+- Improved `add` handler flow to support Sick Leave marker insertion and range insertion
 
 ### Fixed
 
-- Prevented incorrect IN/OUT display (`00:00`) for Sick Leave in `list`
-- Prevented unintended ΔWORK surplus calculation for Sick Leave days
-- Improved argument validation consistency in `add` command
+- Prevented incorrect `00:00` IN time display for Sick Leave in `list`
+- Prevented Sick Leave days from producing surplus/deficit calculations
 
 ---
 

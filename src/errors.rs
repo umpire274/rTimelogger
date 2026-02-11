@@ -41,13 +41,13 @@ pub enum AppError {
     #[error("Invalid operation mode: {0}")]
     InvalidOperation(String),
 
-    #[error("Invalid date range: from ({from}) must be <= to ({to})")]
+    #[error("Invalid date range: from ({from}) must be <= to ({to})\n")]
     InvalidDateRange { from: NaiveDate, to: NaiveDate },
 
     // ---------------------------
     // Logic errors
     // ---------------------------
-    #[error("Invalid arguments: {0}")]
+    #[error("Invalid arguments: {0}\n")]
     InvalidArgs(String),
 
     #[error("No events found for date {0}")]
@@ -86,7 +86,7 @@ pub enum AppError {
     // ---------------------------
     // Generic fallback
     // ---------------------------
-    #[error("Internal error: {0}")]
+    #[error("Internal error: {0}\nThis is likely a bug. Please report it to the developers.\n")]
     Other(String),
 }
 
