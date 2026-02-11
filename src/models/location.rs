@@ -8,6 +8,7 @@ pub enum Location {
     NationalHoliday, // N
     OnSite,          // C (Customer)
     Mixed,           // M
+    SickLeave,       // S
 }
 
 impl Location {
@@ -19,6 +20,7 @@ impl Location {
             Location::NationalHoliday => "N",
             Location::OnSite => "C",
             Location::Mixed => "M",
+            Location::SickLeave => "S",
         }
     }
 
@@ -36,6 +38,7 @@ impl Location {
             "N" => Some(Location::NationalHoliday),
             "C" => Some(Location::OnSite),
             "M" => Some(Location::Mixed),
+            "S" => Some(Location::SickLeave),
             _ => None,
         }
     }
@@ -54,6 +57,7 @@ impl Location {
             Location::NationalHoliday => "National Holiday",
             Location::OnSite => "On-site (Client)",
             Location::Mixed => "Mixed",
+            Location::SickLeave => "Sick Leave",
         }
     }
 
@@ -66,6 +70,7 @@ impl Location {
             Location::NationalHoliday => "\x1b[41;97;1m", // red bg, white bold
             Location::OnSite => "\x1b[33m",               // yellow
             Location::Mixed => "\x1b[35m",                // purple
+            Location::SickLeave => "\x1b[100;37;1m",      // bright black bg, white bold
         }
     }
 }

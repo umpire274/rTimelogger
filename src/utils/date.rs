@@ -1,4 +1,5 @@
 use crate::core::calculator::timeline::Timeline;
+use crate::errors::AppResult;
 use crate::models::location::Location;
 use chrono::{Datelike, NaiveDate, Weekday};
 
@@ -77,8 +78,8 @@ pub fn generate_all_dates() -> Result<Vec<NaiveDate>, String> {
     Ok(all_days_of_year(today().year()))
 }
 
-pub fn parse_date(s: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
+pub fn parse_date(s: &str) -> Result<NaiveDate, String> {
+    NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|e| format!("Invalid date '{}': {}", s, e))
 }
 
 /// Nome mese in inglese (per header stile 0.7.7)
@@ -158,4 +159,20 @@ pub fn get_day_position(timeline: &Timeline) -> Location {
     } else {
         Location::Mixed
     }
+}
+
+// helper weekend
+pub fn is_weekend(d: NaiveDate) -> bool {
+    matches!(d.weekday(), Weekday::Sat | Weekday::Sun)
+}
+
+// helper national holiday in DB (position = 'N')
+pub fn is_national_holiday(conn: &rusqlite::Connection, d: NaiveDate) -> AppResult<bool> {
+    let date_str = d.to_string();
+    let exists: i64 = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM events WHERE date = ?1 AND position = 'N' LIMIT 1)",
+        rusqlite::params![date_str],
+        |r| r.get(0),
+    )?;
+    Ok(exists == 1)
 }

@@ -7,7 +7,7 @@ use crate::models::location::Location;
 use super::events::map_row;
 
 /// Ricalcola i valori "pair" per tutti gli eventi di una data.
-pub fn recalc_pairs_for_date(conn: &mut Connection, date: &NaiveDate) -> AppResult<()> {
+pub fn recalc_pairs_for_date(conn: &Connection, date: &NaiveDate) -> AppResult<()> {
     let date_str = date.format("%Y-%m-%d").to_string();
 
     let mut stmt = conn.prepare(

@@ -205,8 +205,8 @@ fn add_nation_holiday_check_to_events(conn: &Connection) -> Result<()> {
             created_at   TEXT NOT NULL
         );
 
-        INSERT INTO events (id, date, time, kind, position, lunch_break, source, meta, created_at)
-        SELECT id, date, time, kind, position, lunch_break, source, meta, created_at
+        INSERT INTO events (id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, created_at)
+        SELECT id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, created_at
         FROM events_old;
 
         DROP TABLE events_old;
@@ -224,6 +224,76 @@ fn add_nation_holiday_check_to_events(conn: &Connection) -> Result<()> {
     )?;
 
     let msg = "Added new check 'N' position to events";
+
+    conn.execute(
+        r#"
+        INSERT INTO "log" ("date", "operation", "target", "message")
+        VALUES (datetime('now'), 'migration_applied', ?1, ?2)
+        "#,
+        (version, msg),
+    )?;
+
+    success("new check onto 'position' column added.");
+
+    Ok(())
+}
+
+fn add_sick_leave_check_to_events(conn: &Connection) -> Result<()> {
+    if !events_table_exists(conn)? {
+        return Ok(()); // nessuna tabella → niente da migrare
+    }
+
+    // 🔎 Check preliminare
+    if events_position_supports_sick_leave(conn)? {
+        // Tabella già allineata → niente da fare
+        return Ok(());
+    }
+
+    let version = "20260211_1200_add_sick_leave_check_to_events_position";
+
+    // 1) Verifica se già applicata
+    warning("Adding new check onto 'position' column to events table...");
+
+    conn.execute_batch(
+        r#"
+        PRAGMA foreign_keys=OFF;
+        BEGIN;
+
+        ALTER TABLE events RENAME TO events_old;
+
+        CREATE TABLE events (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            date         TEXT NOT NULL,
+            time         TEXT NOT NULL,
+            kind         TEXT NOT NULL CHECK(kind IN ('in','out')),
+            position     TEXT NOT NULL DEFAULT 'O' CHECK(position IN ('O','R','H','N','C','M','S')),
+            lunch_break  INTEGER NOT NULL DEFAULT 0,
+            pair         INTEGER NOT NULL DEFAULT 0,
+            work_gap     INTEGER NOT NULL DEFAULT 0,
+            source       TEXT NOT NULL DEFAULT 'cli',
+            meta         TEXT DEFAULT '',
+            created_at   TEXT NOT NULL
+        );
+
+        INSERT INTO events (id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, created_at)
+        SELECT id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, created_at
+        FROM events_old;
+
+        DROP TABLE events_old;
+
+        CREATE INDEX IF NOT EXISTS idx_events_date_time ON events(date, time);
+        CREATE INDEX IF NOT EXISTS idx_events_date_kind ON events(date, kind);
+
+        UPDATE sqlite_sequence
+            SET seq = (SELECT IFNULL(MAX(id), 0) FROM events)
+        WHERE name = 'events';
+
+        COMMIT;
+        PRAGMA foreign_keys=ON;
+        "#,
+    )?;
+
+    let msg = "Added new check 'S' position to events";
 
     conn.execute(
         r#"
@@ -402,6 +472,9 @@ pub fn run_pending_migrations(conn: &Connection) -> Result<()> {
     // 7) Add national holiday check to events.position
     add_nation_holiday_check_to_events(conn)?;
 
+    // 8) Add sick leave check to events.position
+    add_sick_leave_check_to_events(conn)?;
+
     Ok(())
 }
 
@@ -419,4 +492,20 @@ fn events_position_supports_national_holiday(conn: &Connection) -> Result<bool> 
 
     // Check semplice e affidabile
     Ok(sql.contains("'N'"))
+}
+
+fn events_position_supports_sick_leave(conn: &Connection) -> Result<bool> {
+    let sql: String = conn.query_row(
+        r#"
+        SELECT sql
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = 'events'
+        "#,
+        [],
+        |row| row.get(0),
+    )?;
+
+    // Check semplice e affidabile
+    Ok(sql.contains("'S'"))
 }
