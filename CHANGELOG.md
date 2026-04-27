@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.8.7] - 2026-04-27
+
+### 🐛 Fixed
+
+- Fixed incorrect `TGT` (target end time) calculation in presence of non-work gaps.
+    - Previously, `TGT` was computed as:
+      ```
+      first_in + expected_work_time
+      ```
+      ignoring any non-working gaps (e.g. personal absences).
+    - This caused a mismatch between `TGT` and `ΔWORK`.
+
+- Updated `TGT` calculation to include non-work gaps:
+    ```
+    TGT = first_in + expected_work_time + total_non_work_gaps
+    ```
+
+- Simplified `ΔWORK` computation:
+- Now consistently calculated as:
+  ```
+  ΔWORK = OUT - TGT
+  ```
+- Removed implicit subtraction of non-work gaps to avoid double counting.
+
+### ✅ Improvements
+
+- Ensured full consistency between:
+- displayed `TGT`
+- displayed `OUT`
+- computed `ΔWORK`
+
+- Aligned behavior across:
+- standard `list` output
+- `--compact` view
+
+### 🧠 Notes
+
+- Core working time calculation was already correct; this fix addresses a **display inconsistency only**.
+- No database or schema changes required.
+- No changes to `expected.rs`.
+
+### 📊 Example
+
+Before:
+
+```
+OUT 17:28 | TGT 17:18 | ΔWORK -00h35m ❌ inconsistent
+```
+
+After:
+
+```
+OUT 17:28 | TGT 18:03 | ΔWORK -00h35m ✅ consistent
+```
+
+---
+
 ## [0.8.6] - 2026-02-10
 
 ### Added

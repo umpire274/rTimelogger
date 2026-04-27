@@ -1,6 +1,6 @@
 [package]
 name = "rtimelogger"
-version = "0.8.6"
+version = "0.8.7"
 edition = "2024"
 authors = ["Umpire274 <umpire274@gmail.com>"]
 description = "A simple cross-platform CLI tool to track working hours, lunch breaks, and calculate surplus time"
@@ -25,7 +25,7 @@ winresource = "0.1.28"
 OriginalFilename = "rtimelogger.exe"
 FileDescription = "rTimelogger - Time Tracking Utility"
 ProductName = "rTimelogger"
-ProductVersion = "0.8.5"
+ProductVersion = "0.8.7"
 LegalCopyright = "© 2025 Alessandro Maestri"
 Icon = "res/rtimelogger.ico"
 
