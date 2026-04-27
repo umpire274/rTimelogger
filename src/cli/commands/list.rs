@@ -142,6 +142,17 @@ fn remaining_width(total_width: usize, plain_prefix: &str) -> usize {
     total_width.saturating_sub(plain_prefix.len())
 }
 
+/// Returns the total duration, in minutes, of gaps that are not marked as work gaps.
+fn total_non_work_gap_minutes(summary: &DaySummary) -> i64 {
+    summary
+        .timeline
+        .gaps
+        .iter()
+        .filter(|g| !g.is_work_gap)
+        .map(|g| g.duration_minutes)
+        .sum()
+}
+
 //
 // ───────────────────────────────────────────────────────────────────────────────
 // Public entry
@@ -518,7 +529,10 @@ fn print_daily_row(
         }
 
         // Target end
-        let expected_exit = first_in + chrono::Duration::minutes(summary.expected);
+        let non_work_gap_minutes = total_non_work_gap_minutes(summary);
+        let expected_exit = first_in
+            + chrono::Duration::minutes(summary.expected)
+            + chrono::Duration::minutes(non_work_gap_minutes);
         expected_exit_str = expected_exit.format("%H:%M").to_string();
 
         // Lunch
@@ -536,15 +550,7 @@ fn print_daily_row(
         end_c = colors::colorize_optional(&end_str);
 
         // Surplus (worked)
-        let non_work_gap_minutes: i64 = timeline
-            .gaps
-            .iter()
-            .filter(|g| !g.is_work_gap)
-            .map(|g| g.duration_minutes)
-            .sum();
-
-        surplus_opt =
-            last_out_opt.map(|out| (out - expected_exit).num_minutes() - non_work_gap_minutes);
+        surplus_opt = last_out_opt.map(|out| (out - expected_exit).num_minutes());
 
         match surplus_opt {
             None => {
@@ -771,18 +777,13 @@ fn print_daily_row_compact(
         "--:--".to_string()
     };
 
-    let expected_exit = first_in + chrono::Duration::minutes(summary.expected);
+    let non_work_gap_minutes = total_non_work_gap_minutes(summary);
+    let expected_exit = first_in
+        + chrono::Duration::minutes(summary.expected)
+        + chrono::Duration::minutes(non_work_gap_minutes);
     let target_end_str = expected_exit.format("%H:%M").to_string();
 
-    let non_work_gap_minutes: i64 = timeline
-        .gaps
-        .iter()
-        .filter(|g| !g.is_work_gap)
-        .map(|g| g.duration_minutes)
-        .sum();
-
-    let surplus_opt =
-        last_out_opt.map(|out| (out - expected_exit).num_minutes() - non_work_gap_minutes);
+    let surplus_opt = last_out_opt.map(|out| (out - expected_exit).num_minutes());
 
     let (delta_str, delta_color) = match surplus_opt {
         None => ("-".to_string(), colors::GREY),

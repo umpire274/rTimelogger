@@ -14,22 +14,40 @@ and computes **expected exit time** and **daily surplus** accurately.
 
 ---
 
-## 🚀 What’s new in **v0.8.2**
+## 🚀 What's new in **v0.8.7**
 
-### 🗄️ Database migration
+### 🐛 Fixed — TGT calculation with non-work gaps (v0.8.7)
 
-Starting from **v0.8.2**, rTimelogger automatically migrates the database schema to support the new `National holiday`
-position.
+The `TGT` (target exit time) calculation was incorrect when non-working gaps were present between pairs.
 
-- The migration extends the `events.position` CHECK constraint
-- The migration is **idempotent** (no changes are applied if the schema is already up to date)
-- No manual action is required
+- **Before**: `TGT = first_in + expected_work_time` (gaps ignored → mismatch with ΔWORK)
+- **After**: `TGT = first_in + expected_work_time + total_non_work_gaps` (consistent)
+- `ΔWORK` is now always computed as `OUT − TGT`, removing implicit double-counting
+- No database or schema changes required
 
-### 🧭 Notes
+### 🤒 Sick Leave marker day (v0.8.6)
 
-- Holiday should be used for personal leave days
-- National holiday should be used for public holidays defined by law or company calendar
-- Future versions may introduce calendar-based automation for national holidays
+A new day position **Sick Leave** (`S`) has been introduced.
+
+- Use `--pos s` to mark a sick leave day
+- Optional `--to <DATE>` to apply sick leave over a date range (the command `DATE` is the start)
+- Weekends, national holidays and dates already containing events are automatically skipped
+- Sick Leave days do not contribute to ΔWORK totals and display `--:--` for all time fields
+
+### ➕ Show target exit on IN event (v0.8.5)
+
+After adding an `IN` event, the calculated **target exit time (TGT)** is now immediately displayed in the output,
+so you always know when you need to leave.
+
+### 📋 National Holiday rendering improvements (v0.8.4)
+
+- The `meta` field (e.g. holiday name) is now shown **instead of** `--:--` placeholders for National Holiday days
+- The holiday row layout adapts dynamically to the current table width and weekday display mode
+- Meta values are Unicode-safe: filtered, concatenated, and truncated with a trailing `…` when needed
+
+### 📥 JSON / CSV holiday import (v0.8.3)
+
+See the **Import data** section below for full documentation.
 
 ---
 
@@ -43,6 +61,7 @@ position.
     * `C` Client / On-site
     * `N` National holiday
     * `H` Holiday
+    * `S` Sick Leave
     * `M` Mixed
 * Automatic calculation of:
 
@@ -200,6 +219,9 @@ rtimelogger add 2025-12-15 --in 09:00 --lunch 30 --out 17:30
 rtimelogger add 2025-12-15 --edit --pair 1 --out 18:00
 rtimelogger add 2025-12-15 --out 10:30 --work-gap
 rtimelogger add 2025-12-15 --edit --pair 2 --no-work-gap
+rtimelogger add 2025-12-25 --pos n
+rtimelogger add 2025-03-10 --pos s
+rtimelogger add 2025-03-10 --pos s --to 2025-03-14
 ```
 
 ### 📌 Day positions
@@ -216,6 +238,7 @@ rTimelogger supports multiple day positions to describe how a working day (or no
 | `M`  | Mixed            | Mixed working locations                                       |
 | `H`  | Holiday          | Personal holiday (counts against personal leave allowance)    |
 | `N`  | National holiday | Public holiday (does **not** affect personal leave allowance) |
+| `S`  | Sick Leave       | Sick day (non-working marker, does not reduce holiday budget) |
 
 ### ➕ Adding a national holiday
 
@@ -264,6 +287,35 @@ Example:
 | Expected time            | ❌             | ❌                      |
 | ΔWORK contribution       | ❌             | ❌                      |
 | Requires time entries    | ❌             | ❌                      |
+
+---
+
+### 🤒 Adding a sick leave day
+
+To mark a **sick leave day**, use the `add` command with the sick leave position.
+
+```bash
+rtimelogger add 2025-03-10 --pos s
+```
+
+To mark a **sick leave range** (e.g. a week), add the `--to` option:
+
+```bash
+rtimelogger add 2025-03-10 --pos s --to 2025-03-14
+```
+
+**Behavior**
+
+- No `--in`, `--out`, `--lunch`, or `--work-gap` parameters are allowed
+- The day (or range) is recorded as a non-working sick leave marker
+- Weekends, national holidays, and dates that already contain events are automatically skipped
+- Sick leave days do not contribute to worked time and are not deducted from personal holiday allowance
+
+**Output example**
+
+```text
+2025-03-10 (Mon) | Sick Leave | --:-- | --:-- | --:-- | --:-- | -
+```
 
 ---
 
