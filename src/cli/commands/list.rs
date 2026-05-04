@@ -12,6 +12,7 @@ use crate::utils::date::get_day_position;
 use crate::utils::table::EVENTS_TABLE_WIDTH;
 use crate::utils::{colors, date, formatting, mins2readable};
 use chrono::{Datelike, NaiveDate};
+use textwrap::{Options, fill};
 
 //
 // ───────────────────────────────────────────────────────────────────────────────
@@ -616,6 +617,16 @@ fn print_daily_row(
 // ───────────────────────────────────────────────────────────────────────────────
 //
 
+fn pair_notes(pair: &crate::core::calculator::timeline::Pair) -> Option<String> {
+    pair.out_event
+        .as_ref()
+        .and_then(|ev| ev.notes.as_deref())
+        .or(pair.in_event.notes.as_deref())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToOwned::to_owned)
+}
+
 fn print_details(summary: &DaySummary) {
     if summary.timeline.pairs.is_empty() {
         return;
@@ -664,6 +675,19 @@ fn print_details(summary: &DaySummary) {
             pos_fmt,
             wg_str
         );
+
+        if let Some(notes) = pair_notes(p) {
+            println!();
+            println!("    {} NOTES {}", colors::NOTES, colors::RESET);
+            println!("    {:-<72}", "-");
+
+            let options = Options::new(72)
+                .initial_indent("    ")
+                .subsequent_indent("       ");
+
+            let wrapped = fill(&notes, options);
+            println!("{}", wrapped);
+        }
     }
 
     println!();

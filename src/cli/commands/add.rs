@@ -48,6 +48,7 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
         end,
         edit_pair,
         edit,
+        notes,
         to,
     } = cmd
     {
@@ -128,6 +129,7 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
                     *edit_pair,
                     Some(to_date),
                     pos.clone(),
+                    notes.clone(),
                 )?;
             }
             None => {
@@ -144,6 +146,7 @@ pub fn handle(cmd: &Commands, cfg: &crate::config::Config) -> AppResult<()> {
                     *edit_pair,
                     None,
                     pos.clone(),
+                    notes.clone(),
                 )?;
             }
         }

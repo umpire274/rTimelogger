@@ -13,10 +13,11 @@ pub struct Event {
     pub lunch: Option<i32>, // ⇔ events.lunch_break (INT, default 0)
     pub work_gap: bool,     // ⇔ events.meta/work_gap logica futura
 
-    pub pair: i32,            // ⇔ events.pair (INT NOT NULL DEFAULT 0)
-    pub source: String,       // ⇔ events.source (TEXT, default 'cli')
-    pub meta: Option<String>, // ⇔ events.meta (TEXT, default '')
-    pub created_at: String,   // ⇔ events.created_at (TEXT, ISO8601)
+    pub pair: i32,             // ⇔ events.pair (INT NOT NULL DEFAULT 0)
+    pub source: String,        // ⇔ events.source (TEXT, default 'cli')
+    pub meta: Option<String>,  // ⇔ events.meta (TEXT, default '')
+    pub notes: Option<String>, // ⇔ events.notes (TEXT, optional workday notes)
+    pub created_at: String,    // ⇔ events.created_at (TEXT, ISO8601)
 }
 
 #[derive(Debug, Clone, Default)]
@@ -25,6 +26,7 @@ pub struct EventExtras {
     pub work_gap: bool,
     pub meta: Option<String>,
     pub source: Option<String>,
+    pub notes: Option<String>,
     pub pair: Option<i32>,
     pub created_at: Option<String>,
 }
@@ -52,6 +54,7 @@ impl Event {
             pair: extras.pair.unwrap_or(0),
             source: extras.source.unwrap_or_else(|| "cli".to_string()),
             meta: extras.meta,
+            notes: extras.notes,
             created_at: extras
                 .created_at
                 .unwrap_or_else(|| Local::now().to_rfc3339()),
@@ -126,6 +129,7 @@ impl Event {
             pair: 0,
             source: "".to_string(),
             meta: meta.map(|s| s.to_string()),
+            notes: None,
             // Inizializza qui TUTTI gli altri campi con valori “dummy” validi.
             // Esempi tipici:
             // id: 0,

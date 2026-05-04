@@ -11,6 +11,7 @@ pub struct Pair {
     pub lunch_minutes: i64,
     pub position: Location,
     pub work_gap: bool,
+    pub notes: String,
 }
 
 #[derive(Debug, Clone)]
@@ -79,6 +80,7 @@ pub fn build_timeline(events: &[Event]) -> Timeline {
                     lunch_minutes,
                     position: in_ev.location,
                     work_gap: out_ev.work_gap,
+                    notes: String::new(),
                 });
 
                 i += 2;
@@ -95,6 +97,7 @@ pub fn build_timeline(events: &[Event]) -> Timeline {
                 lunch_minutes: in_ev.lunch.unwrap_or(0) as i64,
                 position: in_ev.location,
                 work_gap: false,
+                notes: String::new(),
             });
         }
 

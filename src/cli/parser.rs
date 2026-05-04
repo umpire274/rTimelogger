@@ -119,13 +119,16 @@ pub enum Commands {
         #[arg(long = "pair", help = "Pair ID to edit (used with --edit)")]
         edit_pair: Option<usize>,
 
-        /// Enable edit mode (requires --pair)
+        /// Enable edit mode. If --pair is omitted, the last available pair is edited.
         #[arg(
             long = "edit",
-            requires = "edit_pair",
             help = "Edit existing pair instead of creating a new one"
         )]
         edit: bool,
+
+        /// Notes for the workday or edited pair
+        #[arg(long = "notes", help = "Add or update notes for the workday/pair")]
+        notes: Option<String>,
 
         /// End date (YYYY-MM-DD). Only valid with --pos Malattia.
         #[arg(long, value_parser = parse_date)]

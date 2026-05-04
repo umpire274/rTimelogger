@@ -45,6 +45,39 @@ fn extras_cli(lunch: Option<i32>, work_gap: bool) -> EventExtras {
     }
 }
 
+fn normalize_notes(notes: Option<String>) -> Option<String> {
+    notes.and_then(|s| {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
+fn set_notes(slot: &mut Option<Event>, notes: &Option<String>) {
+    if let Some(e) = slot.as_mut() {
+        e.notes = notes.clone();
+    }
+}
+
+fn last_pair_index(conn: &rusqlite::Connection, date: &NaiveDate) -> AppResult<usize> {
+    let max_pair: Option<i64> = conn.query_row(
+        "SELECT MAX(pair) FROM events WHERE date = ?1 AND pair > 0",
+        params![date.to_string()],
+        |row| row.get(0),
+    )?;
+
+    match max_pair {
+        Some(v) if v > 0 => Ok(v as usize),
+        _ => Err(AppError::InvalidArgs(format!(
+            "Cannot infer --pair for {}: no editable pair found.",
+            date
+        ))),
+    }
+}
+
 fn upsert_event_time(
     slot: &mut Option<Event>,
     date: NaiveDate,
@@ -72,7 +105,10 @@ impl AddLogic {
         edit_pair: Option<usize>,
         to: Option<NaiveDate>,
         pos: Option<String>,
+        notes: Option<String>,
     ) -> AppResult<()> {
+        let notes = normalize_notes(notes);
+
         // ------------------------------------------------
         // Resolve final position (only if --pos is provided)
         // ------------------------------------------------
@@ -115,8 +151,10 @@ impl AddLogic {
                 ));
             }
 
-            let pair_num = edit_pair
-                .ok_or_else(|| AppError::InvalidArgs("Missing --pair when using --edit.".into()))?;
+            let pair_num = match edit_pair {
+                Some(pair) => pair,
+                None => last_pair_index(&pool.conn, &date)?,
+            };
 
             let (mut ev_in, mut ev_out) = load_pair_by_index(&pool.conn, &date, pair_num)?;
 
@@ -159,6 +197,12 @@ impl AddLogic {
                 && let Some(ref mut e) = ev_out
             {
                 e.lunch = Some(lunch_val);
+            }
+
+            // NOTES (apply to every event belonging to the pair)
+            if notes.is_some() {
+                set_notes(&mut ev_in, &notes);
+                set_notes(&mut ev_out, &notes);
             }
 
             // WORK GAP (only if explicitly requested; requires OUT)
@@ -275,13 +319,14 @@ impl AddLogic {
                 }
 
                 // 4) insert marker
-                let ev = build_event_cli(
+                let mut ev = build_event_cli(
                     day,
                     marker_time, // 00:00
                     EventType::In,
                     Location::SickLeave,
                     extras_cli(Some(0), false),
                 );
+                ev.notes = notes.clone();
 
                 insert_event(&tx, &ev)?;
                 recalc_pairs_for_date(&tx, &day)?;
@@ -345,13 +390,14 @@ impl AddLogic {
             let holiday_time = NaiveTime::from_hms_opt(0, 0, 0)
                 .ok_or_else(|| AppError::Other("Invalid holiday time sentinel.".into()))?;
 
-            let ev_holiday = build_event_cli(
+            let mut ev_holiday = build_event_cli(
                 date,
                 holiday_time,
                 EventType::In,
                 pos_final,
                 extras_cli(lunch, false),
             );
+            ev_holiday.notes = notes.clone();
 
             insert_event(&pool.conn, &ev_holiday)?;
             recalc_pairs_for_date(&pool.conn, &date)?;
@@ -401,7 +447,8 @@ impl AddLogic {
         // CASE B: nothing to do
         if start.is_none() && end.is_none() {
             return Err(AppError::InvalidArgs(
-                "Nothing to do: specify at least --start, --end or --lunch.".into(),
+                "Nothing to do: specify at least --start, --end, --lunch or use --edit --notes."
+                    .into(),
             ));
         }
 
@@ -415,13 +462,14 @@ impl AddLogic {
                 ));
             }
 
-            let ev_in = build_event_cli(
+            let mut ev_in = build_event_cli(
                 date,
                 start_time,
                 EventType::In,
                 pos_final,
                 extras_cli(lunch, false),
             );
+            ev_in.notes = notes.clone();
 
             insert_event(&pool.conn, &ev_in)?;
             recalc_pairs_for_date(&pool.conn, &date)?;
@@ -484,6 +532,7 @@ impl AddLogic {
             if let Some(wg_explicit) = work_gap {
                 ev_out.work_gap = wg_explicit;
             }
+            ev_out.notes = notes.clone();
 
             insert_event(&pool.conn, &ev_out)?;
             recalc_pairs_for_date(&pool.conn, &date)?;
@@ -507,13 +556,14 @@ impl AddLogic {
                 return Err(AppError::InvalidArgs("END must be later than IN.".into()));
             }
 
-            let ev_in = build_event_cli(
+            let mut ev_in = build_event_cli(
                 date,
                 start_time,
                 EventType::In,
                 pos_final,
                 extras_cli(lunch, false),
             );
+            ev_in.notes = notes.clone();
 
             let mut ev_out = build_event_cli(
                 date,
@@ -526,6 +576,7 @@ impl AddLogic {
             if let Some(wg_explicit) = work_gap {
                 ev_out.work_gap = wg_explicit;
             }
+            ev_out.notes = notes.clone();
 
             insert_event(&pool.conn, &ev_in)?;
             insert_event(&pool.conn, &ev_out)?;

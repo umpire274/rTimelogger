@@ -1,5 +1,38 @@
 # Changelog
 
+## [v0.8.8] - 2026-05-04
+
+### ✨ Added
+
+- Added `notes` field (TEXT) to `events` table via DB migration
+- Introduced `--notes "<text>"` option for `add` command
+- Support for `--notes` in edit mode (`add <date> --edit`)
+- Automatic fallback to last available pair when using `--edit --notes` without `--pair`
+- Notes rendering in `list` command when `--details` is enabled
+
+### 🖥️ CLI / UX
+
+- Added dedicated "NOTES" section with ANSI styling (dark red background, white text)
+- Implemented automatic word wrapping at 72 characters for notes output
+- Improved visual consistency of detailed output
+
+### 🔧 Changed
+
+- Relaxed CLI constraints: `--pair` is no longer mandatory when using `--edit`
+- Internal refactor of list rendering logic to support optional notes display
+
+### 🧹 Cleanup
+
+- Removed unused helper functions (dead code)
+- Minor formatting improvements in CLI output
+
+### ⚠️ Migration
+
+- Database schema updated: new nullable column `notes` added to `events`
+- Existing data remains fully compatible
+
+---
+
 ## [0.8.7] - 2026-04-27
 
 ### 🐛 Fixed
