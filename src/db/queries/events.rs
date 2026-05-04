@@ -79,14 +79,15 @@ pub fn map_row(row: &Row) -> Result<Event> {
         pair: row.get("pair")?,
         source: row.get("source")?,
         meta: row.get("meta")?,
+        notes: row.get("notes")?,
         created_at: row.get("created_at")?,
     })
 }
 
 pub fn insert_event(conn: &Connection, ev: &Event) -> AppResult<()> {
     conn.execute(
-        "INSERT INTO events (date, time, kind, position, lunch_break, work_gap, pair, source, meta, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO events (date, time, kind, position, lunch_break, work_gap, pair, source, meta, notes, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
         params![
             ev.date.format("%Y-%m-%d").to_string(),
             ev.time.format("%H:%M").to_string(),
@@ -97,6 +98,7 @@ pub fn insert_event(conn: &Connection, ev: &Event) -> AppResult<()> {
             ev.pair,
             ev.source,
             ev.meta,
+            ev.notes,
             ev.created_at,
         ],
     )?;
@@ -109,8 +111,8 @@ pub fn update_event(conn: &Connection, ev: &Event) -> AppResult<()> {
          SET date = ?1, time = ?2, kind = ?3,
              position = ?4, lunch_break = ?5,
              work_gap = ?6, pair = ?7,
-             source = ?8, meta = ?9, created_at = ?10
-         WHERE id = ?11",
+             source = ?8, meta = ?9, notes = ?10, created_at = ?11
+         WHERE id = ?12",
         params![
             ev.date.to_string(),
             ev.time.format("%H:%M").to_string(),
@@ -121,6 +123,7 @@ pub fn update_event(conn: &Connection, ev: &Event) -> AppResult<()> {
             ev.pair,
             ev.source,
             ev.meta,
+            ev.notes,
             ev.created_at,
             ev.id,
         ],

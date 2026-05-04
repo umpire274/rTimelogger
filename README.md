@@ -14,6 +14,31 @@ and computes **expected exit time** and **daily surplus** accurately.
 
 ---
 
+## 🚀 What's new in **v0.8.8**
+
+### 📝 Notes support for events
+
+You can now attach **free-text notes** to working pairs to describe activities, context, or important details.
+
+- New `notes` field added to `events` table (TEXT)
+- New CLI option: `--notes "<text>"`
+- Supported in both **add** and **edit** modes
+- If `--pair` is omitted in edit mode, notes are applied to the **last pair of the day**
+- Notes are displayed only when using `--details`
+
+**Output example:**
+
+```text
+NOTES
+------------------------------------------------------------------------
+Meeting with client for MVP planning and technical discussion
+```
+
+- Notes are automatically wrapped at 72 characters
+- Output is visually consistent with CLI layout
+
+---
+
 ## 🚀 What's new in **v0.8.7**
 
 ### 🐛 Fixed — TGT calculation with non-work gaps (v0.8.7)
@@ -105,7 +130,7 @@ brew install rtimelogger
 
 ### 🐧📦 Linux (Debian / Ubuntu)
 
-Starting from **v0.8.0**, rFortune provides an official **`.deb` package**.
+Starting from **v0.8.0**, rTimelogger provides an official **`.deb` package**.
 
 You can install it directly from the GitHub Releases page:
 
@@ -319,6 +344,36 @@ rtimelogger add 2025-03-10 --pos s --to 2025-03-14
 
 ---
 
+### 📝 Adding notes to a pair
+
+You can attach notes when creating or editing a pair:
+
+```bash
+rtimelogger add 2025-12-15 --in 09:00 --notes "Morning setup and backlog review"
+```
+
+Edit an existing pair:
+
+```bash
+rtimelogger add 2025-12-15 --edit --pair 1 --notes "Extended debugging session"
+```
+
+Edit without specifying a pair:
+
+```bash
+rtimelogger add 2025-12-15 --edit --notes "End of day summary"
+```
+
+➡️ Notes will be applied automatically to the last available pair.
+
+**Behavior**
+
+- Notes are stored as plain text
+- They are optional
+- They do not affect time calculations
+
+---
+
 ## 📋 Listing sessions — `rtimelogger list`
 
 The `list` command displays saved work sessions, supporting multiple layouts and levels of detail.
@@ -408,6 +463,22 @@ PAIR |  IN   |  OUT  | WORKED | LUNCH | POSITION | WG
 - **LUNCH** – lunch break for the pair
 - **POSITION** – position for the pair
 - **WG** – working gap indicator (🔗 for working gap, ✂️ for non-working gap)
+
+#### 📝 Notes rendering
+
+When notes are present, an additional section is displayed:
+
+ˆˆtext
+NOTES
+------------------------------------------------------------------------
+Fixed production bug, performed root cause analysis and deployed patch
+ˆˆˆ
+
+**Behavior**
+
+- Notes are shown only in `--details` mode
+- Automatically wrapped at 72 characters
+- Preserves indentation and CLI formatting
 
 ### 📦 Compact view (--compact)
 
@@ -549,14 +620,14 @@ Flexible JSON structures are supported. The following formats are valid:
 {
   "year": 2026,
   "holidays": [
-    {
-      "date": "2026-01-01",
-      "name": "New Year"
-    },
-    {
-      "date": "2026-01-06",
-      "name": "Epiphany"
-    }
+	{
+	  "date": "2026-01-01",
+	  "name": "New Year"
+	},
+	{
+	  "date": "2026-01-06",
+	  "name": "Epiphany"
+	}
   ]
 }
 ```
@@ -566,11 +637,11 @@ Flexible JSON structures are supported. The following formats are valid:
 ```json
 {
   "days": [
-    {
-      "date": "2026-05-01",
-      "position": "N",
-      "name": "Labour Day"
-    }
+	{
+	  "date": "2026-05-01",
+	  "position": "N",
+	  "name": "Labour Day"
+	}
   ]
 }
 ```
@@ -580,8 +651,8 @@ Flexible JSON structures are supported. The following formats are valid:
 ```json
 [
   {
-    "date": "2026-12-25",
-    "name": "Christmas Day"
+	"date": "2026-12-25",
+	"name": "Christmas Day"
   }
 ]
 

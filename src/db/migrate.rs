@@ -47,6 +47,19 @@ fn events_has_pair_column(conn: &Connection) -> Result<bool> {
     Ok(false)
 }
 
+/// Check if the `events` table has the requested column.
+fn events_has_column(conn: &Connection, column_name: &str) -> Result<bool> {
+    let mut stmt = conn.prepare("PRAGMA table_info('events')")?;
+    let cols = stmt.query_map([], |row| row.get::<_, String>(1))?;
+
+    for c in cols {
+        if c? == column_name {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// Create the `events` table with the modern schema (including `pair`).
 fn create_events_table(conn: &Connection) -> Result<()> {
     conn.execute_batch(
@@ -56,11 +69,13 @@ fn create_events_table(conn: &Connection) -> Result<()> {
             date         TEXT NOT NULL,
             time         TEXT NOT NULL,
             kind         TEXT NOT NULL CHECK(kind IN ('in','out')),
-            position     TEXT NOT NULL DEFAULT 'O' CHECK(position IN ('O','R','H','C','M')),
+            position     TEXT NOT NULL DEFAULT 'O' CHECK(position IN ('O','R','H','N','C','M','S')),
             lunch_break  INTEGER NOT NULL DEFAULT 0,
             pair         INTEGER NOT NULL DEFAULT 0,
+            work_gap     INTEGER NOT NULL DEFAULT 0,
             source       TEXT NOT NULL DEFAULT 'cli',
             meta         TEXT DEFAULT '',
+            notes        TEXT DEFAULT '',
             created_at   TEXT NOT NULL
         );
 
@@ -98,13 +113,15 @@ fn migrate_add_pair_to_events(conn: &Connection) -> Result<()> {
             position     TEXT NOT NULL DEFAULT 'O' CHECK(position IN ('O','R','H','C','M')),
             lunch_break  INTEGER NOT NULL DEFAULT 0,
             pair         INTEGER NOT NULL DEFAULT 0,
+            work_gap     INTEGER NOT NULL DEFAULT 0,
             source       TEXT NOT NULL DEFAULT 'cli',
             meta         TEXT DEFAULT '',
+            notes        TEXT DEFAULT '',
             created_at   TEXT NOT NULL
         );
 
-        INSERT INTO events (id, date, time, kind, position, lunch_break, source, meta, created_at)
-        SELECT id, date, time, kind, position, lunch_break, source, meta, created_at
+        INSERT INTO events (id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, notes, created_at)
+        SELECT id, date, time, kind, position, lunch_break, 0, 0, source, meta, '', created_at
         FROM events_old;
 
         DROP TABLE events_old;
@@ -202,11 +219,12 @@ fn add_nation_holiday_check_to_events(conn: &Connection) -> Result<()> {
             work_gap     INTEGER NOT NULL DEFAULT 0,
             source       TEXT NOT NULL DEFAULT 'cli',
             meta         TEXT DEFAULT '',
+            notes        TEXT DEFAULT '',
             created_at   TEXT NOT NULL
         );
 
-        INSERT INTO events (id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, created_at)
-        SELECT id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, created_at
+        INSERT INTO events (id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, notes, created_at)
+        SELECT id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, '', created_at
         FROM events_old;
 
         DROP TABLE events_old;
@@ -272,11 +290,12 @@ fn add_sick_leave_check_to_events(conn: &Connection) -> Result<()> {
             work_gap     INTEGER NOT NULL DEFAULT 0,
             source       TEXT NOT NULL DEFAULT 'cli',
             meta         TEXT DEFAULT '',
+            notes        TEXT DEFAULT '',
             created_at   TEXT NOT NULL
         );
 
-        INSERT INTO events (id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, created_at)
-        SELECT id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, created_at
+        INSERT INTO events (id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, notes, created_at)
+        SELECT id, date, time, kind, position, lunch_break, pair, work_gap, source, meta, '', created_at
         FROM events_old;
 
         DROP TABLE events_old;
@@ -414,6 +433,35 @@ fn migrate_add_work_gap_column(conn: &Connection) -> Result<(), Error> {
     Ok(())
 }
 
+fn migrate_add_notes_column(conn: &Connection) -> Result<(), Error> {
+    let version = "20260504_0013_add_notes_to_events";
+
+    if !events_table_exists(conn)? || events_has_column(conn, "notes")? {
+        return Ok(());
+    }
+
+    conn.execute("ALTER TABLE events ADD COLUMN notes TEXT DEFAULT '';", [])
+        .map_err(|e| {
+            Error::SqliteFailure(
+                rusqlite::ffi::Error::new(1),
+                Some(format!("Failed to add 'notes' column: {}", e)),
+            )
+        })?;
+
+    conn.execute(
+        "INSERT INTO log (date, operation, target, message)
+         VALUES (datetime('now'), 'migration_applied', ?1, 'Added notes field to events')",
+        [version],
+    )?;
+
+    success(format!(
+        "Migration applied: {} → added 'notes' to events table",
+        version
+    ));
+
+    Ok(())
+}
+
 /// Public entry point: run all pending migrations.
 ///
 /// Invocata da db::init_db().
@@ -474,6 +522,9 @@ pub fn run_pending_migrations(conn: &Connection) -> Result<()> {
 
     // 8) Add sick leave check to events.position
     add_sick_leave_check_to_events(conn)?;
+
+    // 9) Add optional notes field to events.
+    migrate_add_notes_column(conn)?;
 
     Ok(())
 }

@@ -1,6 +1,6 @@
 [package]
 name = "rtimelogger"
-version = "0.8.7"
+version = "0.8.8"
 edition = "2024"
 authors = ["Umpire274 <umpire274@gmail.com>"]
 description = "A simple cross-platform CLI tool to track working hours, lunch breaks, and calculate surplus time"
@@ -50,3 +50,4 @@ chrono = { version = "0.4.42", features = ["serde"] }
 time = "0.3.44"
 ansi_term = "0.12.1"
 regex = "1.12.2"
+textwrap = "0.16.2"
