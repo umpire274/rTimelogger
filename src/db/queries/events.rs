@@ -24,6 +24,25 @@ pub fn load_events_by_date(pool: &mut DbPool, date: &NaiveDate) -> AppResult<Vec
     Ok(out)
 }
 
+pub fn load_events_by_range(
+    pool: &mut DbPool,
+    from: &NaiveDate,
+    to: &NaiveDate,
+) -> AppResult<Vec<Event>> {
+    let mut stmt = pool.conn.prepare(
+        "SELECT * FROM events
+         WHERE date >= ?1 AND date <= ?2
+         ORDER BY date ASC, time ASC",
+    )?;
+
+    let rows = stmt.query_map(params![from.to_string(), to.to_string()], map_row)?;
+    let mut events = Vec::new();
+    for row in rows {
+        events.push(row?);
+    }
+    Ok(events)
+}
+
 pub fn map_row(row: &Row) -> Result<Event> {
     let date_str: String = row.get("date")?;
     let time_str: String = row.get("time")?;

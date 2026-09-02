@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.9.0] - 2026-09-02
+
+### ✨ Added
+
+- Added `stats --from <DATE> --to <DATE> --group-by <week|month|year>`.
+- Added weekly (ISO), monthly, and yearly work-statistics aggregation.
+- Added expected, worked, recognized, leave, sick-leave, and national-holiday totals.
+- Added balance, worked-day average, and day counts by category.
+- Paid Holiday, Sick Leave, and National Holiday markers now fulfil contractual time in statistics.
+- Added unit tests for paid absences, work gaps, and ISO week boundaries.
+
+### 🧠 Calculation rules
+
+- Date boundaries are inclusive.
+- Expected time uses the configured `min_work_duration` and excludes lunch.
+- Working gaps count as worked time; non-working gaps do not.
+- Weekdays without records remain visible and contribute expected time.
+- `recognized = worked + leave + sick leave + national holiday`.
+- `balance = recognized - expected`.
+
 ## [v0.8.8] - 2026-05-04
 
 ### ✨ Added

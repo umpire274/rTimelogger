@@ -7,3 +7,4 @@ pub mod calculator;
 pub mod importer;
 pub mod log;
 pub mod logic;
+pub mod stats;
