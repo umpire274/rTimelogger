@@ -32,22 +32,22 @@ Icon = "res/rtimelogger.ico"
 [dependencies]
 rusqlite = { version = "0.38.0", features = ["bundled"] }
 clap = { version = "4.5.54", features = ["derive"] }
-predicates = "3.1.3"
-assert_cmd = "2.1.1"
-serde = { version = "1.0.228", features = ["derive"] }
+predicates = "3.1.4"
+assert_cmd = "2.2.2"
+serde = { version = "1.0.229", features = ["derive"] }
 serde_yaml = "0.9.33"
-serde_json = "1.0.145"
-zip = "7.0.0"
-flate2 = "1.1.5"
-tar = "0.4.44"
+serde_json = "1.0.151"
+zip = "8.6.0"
+flate2 = "1.1.10"
+tar = "0.4.46"
 csv = "1.4.0"
-rust_xlsxwriter = "0.92.3"
+rust_xlsxwriter = "0.99.0"
 unicode-width = "0.2.2"
-pdf-writer = "0.14.0"
+pdf-writer = "0.15.0"
 dirs = "6.0.0"
-thiserror = "2.0.17"
-chrono = { version = "0.4.42", features = ["serde"] }
+thiserror = "2.0.20"
+chrono = { version = "0.4.45", features = ["serde"] }
 time = "0.3.44"
 ansi_term = "0.12.1"
-regex = "1.12.2"
+regex = "1.13.1"
 textwrap = "0.16.2"
