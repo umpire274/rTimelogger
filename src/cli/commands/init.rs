@@ -31,7 +31,7 @@ pub fn handle(cli: &Cli) -> AppResult<()> {
 
     info("Initializing rTimelogger…");
     info(format!("Config file : {}", config_path.display()));
-    info(format!("Database     : {}", &db_path));
+    info(format!("Database     : {}", db_path));
 
     //
     // 2️⃣ OPEN DATABASE
@@ -42,7 +42,7 @@ pub fn handle(cli: &Cli) -> AppResult<()> {
     // 3️⃣ INITIALIZE DB STRUCTURE + RUN MIGRATIONS
     //
     init_db(&conn)?;
-    success(format!("Database initialized at {}", &db_path));
+    success(format!("Database initialized at {}", db_path));
 
     //
     // 4️⃣ INTERNAL LOG (best-effort)
@@ -51,7 +51,7 @@ pub fn handle(cli: &Cli) -> AppResult<()> {
         &conn,
         "init",
         "Database initialized",
-        &format!("Database initialized at {}", &db_path),
+        &format!("Database initialized at {}", db_path),
     ) {
         warning(format!("Failed to write internal log: {}", e));
     }

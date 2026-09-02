@@ -1,7 +1,14 @@
 use crate::export::ExportFormat;
 use crate::utils::date::parse_date;
 use chrono::NaiveDate;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum StatsGrouping {
+    Week,
+    Month,
+    Year,
+}
 
 /// Command-line interface definition for rTimelogger
 /// CLI application to track working hours with SQLite
@@ -166,6 +173,21 @@ pub enum Commands {
 
         #[arg(long = "pairs", help = "Filter by pair id (only with --events)")]
         pairs: Option<usize>,
+    },
+
+    /// Show work statistics for a date range
+    Stats {
+        /// First day included in the report (YYYY-MM-DD)
+        #[arg(long, value_parser = parse_date)]
+        from: NaiveDate,
+
+        /// Last day included in the report (YYYY-MM-DD)
+        #[arg(long, value_parser = parse_date)]
+        to: NaiveDate,
+
+        /// Aggregate results by ISO week, calendar month, or calendar year
+        #[arg(long = "group-by", value_enum)]
+        group_by: StatsGrouping,
     },
 
     /// Create a backup copy of the database

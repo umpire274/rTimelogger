@@ -14,6 +14,27 @@ and computes **expected exit time** and **daily surplus** accurately.
 
 ---
 
+## 🚀 What's new in **v0.9.0**
+
+### 📊 Weekly, monthly, and yearly work statistics
+
+The new `stats` command summarizes any inclusive date range:
+
+```bash
+rtimelogger stats --from 2026-01-01 --to 2026-12-31 --group-by month
+```
+
+- Aggregation by ISO week, calendar month, or calendar year
+- Expected, worked, and contractually recognized time
+- Paid holiday, sick leave, and national holiday totals
+- Balance, average per worked day, and day counts by category
+- Paid absences and national holidays fulfil the expected contractual time
+- Working gaps count as worked time; non-working gaps do not
+
+See [Work statistics](#-work-statistics--rtimelogger-stats) for the complete calculation rules and examples.
+
+---
+
 ## 🚀 What's new in **v0.8.8**
 
 ### 📝 Notes support for events
@@ -579,6 +600,46 @@ rtimelogger backup --file /abs/path/backup.sqlite --compress
 * confirmation before overwrite
 * ZIP on Windows
 * TAR.GZ on Linux/macOS
+
+---
+
+## 📊 Work statistics — `rtimelogger stats`
+
+The `stats` command summarizes an inclusive date range by ISO week, calendar month, or calendar year:
+
+```bash
+rtimelogger stats --from 2026-01-01 --to 2026-12-31 --group-by month
+```
+
+Accepted values for `--group-by` are `week`, `month`, and `year`. Weekly groups follow ISO week numbering
+(Monday through Sunday); the first and last groups may be partial when the requested range starts or ends
+inside a group.
+
+The report shows:
+
+* expected contractual time;
+* actual worked time, including gaps marked as work gaps;
+* paid holiday, sick leave, and national holiday time;
+* recognized time and balance;
+* worked/leave/sick/national-holiday day counts;
+* average actual time per worked day.
+
+Holiday (`H`), Sick Leave (`S`), and National Holiday (`N`) markers fulfil the expected contractual time for
+the day. They therefore describe how recognized time is composed without reducing the worker's balance.
+Weekdays with no recorded event remain part of the calculation and contribute their expected time.
+
+```text
+recognized = worked + leave + sick + national holiday
+balance    = recognized - expected
+```
+
+Examples:
+
+```bash
+rtimelogger stats --from 2026-08-01 --to 2026-08-31 --group-by week
+rtimelogger stats --from 2026-01-01 --to 2026-12-31 --group-by month
+rtimelogger stats --from 2020-01-01 --to 2026-12-31 --group-by year
+```
 
 ---
 

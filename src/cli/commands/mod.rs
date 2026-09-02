@@ -8,3 +8,4 @@ pub mod import;
 pub mod init;
 pub mod list;
 pub mod log;
+pub mod stats;

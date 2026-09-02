@@ -25,6 +25,7 @@ pub fn dispatch(cli: &Cli, cfg: &Config) -> AppResult<()> {
         Commands::Db { .. } => cli::commands::db::handle(&cli.command, cfg),
         Commands::Add { .. } => cli::commands::add::handle(&cli.command, cfg),
         Commands::List { .. } => cli::commands::list::handle(&cli.command, cfg),
+        Commands::Stats { .. } => cli::commands::stats::handle(&cli.command, cfg),
         Commands::Del { .. } => cli::commands::del::handle(&cli.command, cfg),
         Commands::Backup { .. } => cli::commands::backup::handle(&cli.command, cfg),
         Commands::Log { .. } => cli::commands::log::handle(&cli.command, cfg),
