@@ -1,140 +1,58 @@
-<h1 style="text-align: left; display: flex; align-items: center;">
-  <img src="res/rtimelogger.svg" width="90" style="vertical-align: middle; margin-right: 8px;" alt="rTimelogger Logo"/>
+<h1 style={text-align:"left"}>
+  <img src="res/rtimelogger.svg" width="90" alt="rTimelogger logo" />
   rTimelogger
 </h1>
 
 [![Build Status](https://github.com/umpire274/rTimelogger/actions/workflows/ci.yml/badge.svg)](https://github.com/umpire274/rTimelogger/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/umpire274/rTimelogger)](https://github.com/umpire274/rTimelogger/releases)
 [![codecov](https://codecov.io/gh/umpire274/rTimelogger/graph/badge.svg)](https://codecov.io/gh/umpire274/rTimelogger)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**rTimelogger** is a cross-platform **command-line time tracking tool** written in Rust.
-It tracks working time using **IN / OUT events**, supports multiple locations, lunch rules, working gaps,
-and computes **expected exit time** and **daily surplus** accurately.
+**rTimelogger** is a cross-platform command-line application for recording working time with IN/OUT events, tracking
+work locations and protected absences, and calculating expected time, daily balance, and aggregated statistics. Data is
+stored locally in SQLite.
 
----
+## What's new in v0.9.1
 
-## 🚀 What's new in **v0.9.0**
+Version 0.9.1 improves the statistics introduced in v0.9.0:
 
-### 📊 Weekly, monthly, and yearly work statistics
+- day counts for every category: `O`, `R`, `C`, `M`, `H`, `S`, and `N`;
+- automatic `Mixed` classification when a date contains multiple working locations;
+- styled Unicode tables for time totals and day distribution;
+- clearer `Paid Leave`, `Sick Leave`, and `National Holiday` terminology;
+- distinct colors, title backgrounds, and highlighted total rows;
+- `month` as the default value for `stats --group-by`;
+- no database migration required.
 
-The new `stats` command summarizes any inclusive date range:
+See [CHANGELOG.md](CHANGELOG.md) for the complete release history.
 
-```bash
-rtimelogger stats --from 2026-01-01 --to 2026-12-31 --group-by month
-```
+## Features
 
-- Aggregation by ISO week, calendar month, or calendar year
-- Expected, worked, and contractually recognized time
-- Paid holiday, sick leave, and national holiday totals
-- Balance, average per worked day, and day counts by category
-- Paid absences and national holidays fulfil the expected contractual time
-- Working gaps count as worked time; non-working gaps do not
+- Multiple IN/OUT pairs per day
+- Office, remote, on-site, and mixed work locations
+- Paid leave, sick leave, and national holiday markers
+- Configurable work duration and lunch rules
+- Working and non-working gaps between pairs
+- Expected exit time and daily balance
+- Weekly, monthly, and yearly statistics
+- Day counts by work-location category
+- Free-text notes attached to work pairs
+- Detailed and compact terminal views
+- CSV, JSON, XLSX, and PDF exports
+- JSON and CSV calendar-day imports
+- SQLite migrations, integrity checks, and backups
+- Internal audit log
+- Linux, macOS, and Windows support
 
-See [Work statistics](#-work-statistics--rtimelogger-stats) for the complete calculation rules and examples.
+## Installation
 
----
-
-## 🚀 What's new in **v0.8.8**
-
-### 📝 Notes support for events
-
-You can now attach **free-text notes** to working pairs to describe activities, context, or important details.
-
-- New `notes` field added to `events` table (TEXT)
-- New CLI option: `--notes "<text>"`
-- Supported in both **add** and **edit** modes
-- If `--pair` is omitted in edit mode, notes are applied to the **last pair of the day**
-- Notes are displayed only when using `--details`
-
-**Output example:**
-
-```text
-NOTES
-------------------------------------------------------------------------
-Meeting with client for MVP planning and technical discussion
-```
-
-- Notes are automatically wrapped at 72 characters
-- Output is visually consistent with CLI layout
-
----
-
-## 🚀 What's new in **v0.8.7**
-
-### 🐛 Fixed — TGT calculation with non-work gaps (v0.8.7)
-
-The `TGT` (target exit time) calculation was incorrect when non-working gaps were present between pairs.
-
-- **Before**: `TGT = first_in + expected_work_time` (gaps ignored → mismatch with ΔWORK)
-- **After**: `TGT = first_in + expected_work_time + total_non_work_gaps` (consistent)
-- `ΔWORK` is now always computed as `OUT − TGT`, removing implicit double-counting
-- No database or schema changes required
-
-### 🤒 Sick Leave marker day (v0.8.6)
-
-A new day position **Sick Leave** (`S`) has been introduced.
-
-- Use `--pos s` to mark a sick leave day
-- Optional `--to <DATE>` to apply sick leave over a date range (the command `DATE` is the start)
-- Weekends, national holidays and dates already containing events are automatically skipped
-- Sick Leave days do not contribute to ΔWORK totals and display `--:--` for all time fields
-
-### ➕ Show target exit on IN event (v0.8.5)
-
-After adding an `IN` event, the calculated **target exit time (TGT)** is now immediately displayed in the output,
-so you always know when you need to leave.
-
-### 📋 National Holiday rendering improvements (v0.8.4)
-
-- The `meta` field (e.g. holiday name) is now shown **instead of** `--:--` placeholders for National Holiday days
-- The holiday row layout adapts dynamically to the current table width and weekday display mode
-- Meta values are Unicode-safe: filtered, concatenated, and truncated with a trailing `…` when needed
-
-### 📥 JSON / CSV holiday import (v0.8.3)
-
-See the **Import data** section below for full documentation.
-
----
-
-## ✨ Features
-
-* Event-based time tracking (IN / OUT)
-* Multiple working positions:
-
-    * `O` Office
-    * `R` Remote
-    * `C` Client / On-site
-    * `N` National holiday
-    * `H` Holiday
-    * `S` Sick Leave
-    * `M` Mixed
-* Automatic calculation of:
-
-    * expected exit
-    * daily surplus
-* Configurable lunch rules
-* Event mode with:
-
-    * pairing
-    * per-pair summaries
-    * JSON output
-    * unmatched detection
-* Internal audit log
-* Safe database migrations with automatic backups
-* Cross-platform (Linux, macOS, Windows)
-
----
-
-## 📦 Installation
-
-### 🦀 Cargo (recommended)
+### Cargo
 
 ```bash
 cargo install rtimelogger
 ```
 
-### 🐧 Arch Linux (AUR)
+### Arch Linux (AUR)
 
 ```bash
 yay -S rtimelogger
@@ -142,78 +60,88 @@ yay -S rtimelogger
 paru -S rtimelogger
 ```
 
-### 🍺 Homebrew (macOS / Linux)
+### Homebrew (macOS and Linux)
 
 ```bash
 brew tap umpire274/tap
 brew install rtimelogger
 ```
 
-### 🐧📦 Linux (Debian / Ubuntu)
+### Debian and Ubuntu
 
-Starting from **v0.8.0**, rTimelogger provides an official **`.deb` package**.
-
-You can install it directly from the GitHub Releases page:
+Download the `.deb` package from the GitHub Releases page, then run:
 
 ```bash
 sudo dpkg -i rtimelogger_<version>_amd64.deb
+sudo apt --fix-broken install
 ```
 
-To verify integrity, download the corresponding `.sig` file and verify it with GPG (see below).
+When checksum and signature files are provided, verify the package before installation:
 
 ```bash
 sha256sum -c rtimelogger_<version>_amd64.deb.sha256
 gpg --verify rtimelogger_<version>_amd64.deb.sig
 ```
 
-If dependencies are missing, complete the installation with:
-
-```bash
-sudo apt --fix-broken install
-```
-
-### 🐧🔧 Other Linux distros
-
-You can still use the prebuilt tarball:
+### Other Linux distributions
 
 ```bash
 tar -xvf rtimelogger-<version>-x86_64-unknown-linux-gnu.tar.gz
 sudo mv rtimelogger /usr/local/bin/
 ```
 
-### 🍎 macOS
+### macOS release archives
 
-You can use the prebuilt tarballs for Intel or Apple Silicon:
+Intel:
 
 ```bash
 tar -xvf rtimelogger-<version>-x86_64-apple-darwin.tar.gz
 sudo mv rtimelogger /usr/local/bin/
 ```
 
-or
+Apple Silicon:
 
 ```bash
 tar -xvf rtimelogger-<version>-aarch64-apple-darwin.tar.gz
 sudo mv rtimelogger /usr/local/bin/
 ```
 
-### 🪟 Windows
+### Windows
 
-Download the prebuilt zip file, extract it, and move `rtimelogger.exe` to a directory in your `PATH`, e.g.,
-`C:\Windows\System32\` or create a dedicated folder like `C:\Program Files\rtimelogger\` and add it to your system
-`PATH`.
+Download and extract the release ZIP, then place `rtimelogger.exe` in a dedicated directory included in your user or
+system `PATH`.
 
----
+## Quick start
 
-## ⚙️ Configuration
-
-Initialize configuration and database:
+Initialize the configuration and database:
 
 ```bash
 rtimelogger init
 ```
 
-Example `rtimelogger.conf`:
+Record a complete working day:
+
+```bash
+rtimelogger add 2026-09-04 --pos O --in 09:00 --lunch 30 --out 17:30
+```
+
+Show the current month:
+
+```bash
+rtimelogger list
+```
+
+Show monthly statistics for a date range:
+
+```bash
+rtimelogger stats --from 2026-01-01 --to 2026-12-31
+```
+
+## Configuration
+
+The default configuration file is created by `rtimelogger init`.
+
+Example:
 
 ```yaml
 database: /home/user/.rtimelogger/rtimelogger.sqlite
@@ -223,513 +151,417 @@ lunch_window: 12:30-14:00
 min_duration_lunch_break: 30
 max_duration_lunch_break: 90
 separator_char: "-"
-show_weekday: None   # None | Short | Medium | Long
+show_weekday: None
 ```
 
-Override database path at runtime:
+Supported `show_weekday` values are `None`, `Short`, `Medium`, and `Long`.
+
+Inspect or edit the configuration:
 
 ```bash
-rtimelogger --db /custom/path/db.sqlite <command>
+rtimelogger config --print
+rtimelogger config --check
+rtimelogger config --edit
+rtimelogger config --migrate
 ```
 
----
-
-## 🧭 Main commands overview
-
-| Command  | Description                                |
-|----------|--------------------------------------------|
-| `init`   | Initialize DB and config                   |
-| `add`    | Add or edit IN / OUT events                |
-| `list`   | Show sessions, events, or details          |
-| `del`    | Delete events or pairs (with confirmation) |
-| `backup` | Backup database (optional compression)     |
-| `export` | Export data (CSV / JSON / XLSX / PDF)      |
-| `db`     | Database utilities                         |
-| `config` | Manage configuration file                  |
-| `log`    | Show internal audit log                    |
-
----
-
-## ➕ Add work sessions — `rtimelogger add`
+Specify a different editor when required:
 
 ```bash
-rtimelogger add <DATE> [OPTIONS]
+rtimelogger config --edit --editor vim
 ```
 
-Examples:
+Override the database for any command:
 
 ```bash
-rtimelogger add 2025-12-15 --in 09:00
-rtimelogger add 2025-12-15 --out 17:30
-rtimelogger add 2025-12-15 --in 09:00 --lunch 30 --out 17:30
-rtimelogger add 2025-12-15 --edit --pair 1 --out 18:00
-rtimelogger add 2025-12-15 --out 10:30 --work-gap
-rtimelogger add 2025-12-15 --edit --pair 2 --no-work-gap
-rtimelogger add 2025-12-25 --pos n
-rtimelogger add 2025-03-10 --pos s
-rtimelogger add 2025-03-10 --pos s --to 2025-03-14
+rtimelogger --db /custom/path/rtimelogger.sqlite list
 ```
 
-### 📌 Day positions
+On Windows:
 
-rTimelogger supports multiple day positions to describe how a working day (or non-working day) is classified.
+```powershell
+rtimelogger.exe --db C:\Data\rtimelogger.sqlite list
+```
 
-**Supported positions**
+## Position codes
 
-| Code | Name             | Description                                                   |
-|------|------------------|---------------------------------------------------------------|
-| `O`  | Office           | Regular office working day                                    |
-| `R`  | Remote           | Remote working day                                            |
-| `C`  | On-site          | Working day at customer site                                  |
-| `M`  | Mixed            | Mixed working locations                                       |
-| `H`  | Holiday          | Personal holiday (counts against personal leave allowance)    |
-| `N`  | National holiday | Public holiday (does **not** affect personal leave allowance) |
-| `S`  | Sick Leave       | Sick day (non-working marker, does not reduce holiday budget) |
+Each date is classified using one of the following codes:
 
-### ➕ Adding a national holiday
+| Code | Name             | Meaning                                     |
+|------|------------------|---------------------------------------------|
+| `O`  | Office           | Work performed from the office              |
+| `R`  | Remote           | Work performed remotely                     |
+| `C`  | On-site          | Work performed at a customer site           |
+| `M`  | Mixed            | Multiple work locations during the same day |
+| `H`  | Paid Leave       | Personal paid leave                         |
+| `S`  | Sick Leave       | Contractually protected sick leave          |
+| `N`  | National Holiday | Public or national holiday                  |
 
-To mark a **public/national holiday**, use the `add` command with the national position.
+`O`, `R`, `C`, and `M` represent worked days. `H`, `S`, and `N` are marker days and do not require IN/OUT times.
+
+## Commands
+
+| Command  | Description                             |
+|----------|-----------------------------------------|
+| `init`   | Initialize configuration and database   |
+| `add`    | Add or edit events, markers, and notes  |
+| `list`   | Display daily sessions or raw events    |
+| `stats`  | Display aggregated work statistics      |
+| `del`    | Delete a day or a selected pair         |
+| `backup` | Create a database backup                |
+| `export` | Export stored sessions                  |
+| `import` | Import calendar days from JSON or CSV   |
+| `db`     | Run database maintenance commands       |
+| `config` | Inspect, edit, or migrate configuration |
+| `log`    | Display the internal audit log          |
+
+Run `rtimelogger <command> --help` for the complete option list.
+
+## Adding and editing data
+
+### Working sessions
+
+Add IN and OUT events together or separately:
 
 ```bash
-rtimelogger add 2025-12-25 --pos n
+rtimelogger add 2026-09-04 --pos O --in 09:00 --lunch 30 --out 17:30
+rtimelogger add 2026-09-04 --pos O --in 09:00
+rtimelogger add 2026-09-04 --out 17:30
 ```
 
-or
+Use lowercase or uppercase position codes:
 
 ```bash
-rtimelogger add 2025-12-25 --pos national
+rtimelogger add 2026-09-04 --pos r --in 09:00 --out 17:30
 ```
 
-**Behavior**
+### Multiple pairs and gaps
 
-- No `--in`, `--out`, `--lunch`, or `--work-gap` parameters are allowed
-- The day is recorded as a non-working public holiday
-- The day does not contribute to worked time
-- The day does not reduce personal holiday allowance
-
-### 📋 List output behavior
-
-**National holiday days**
-
-In both standard and compact list views:
-
-- All time-related fields are displayed as `--:--`
-- Target end (`TGT`) is not computed
-- Worked delta (`ΔWORK`) is neutral (`-`)
-- The day is clearly labeled as **National holiday**
-
-Example:
-
-```text
-2025-12-25 (Thu) | National holiday | --:-- | --:-- | --:-- | --:-- | -
-```
-
-### ⚖️ Holiday vs National holiday
-
-| Aspect                   | Holiday (`H`) | National holiday (`N`) |
-|--------------------------|---------------|------------------------|
-| Working day              | ❌             | ❌                      |
-| Counts as personal leave | ✅             | ❌                      |
-| Expected time            | ❌             | ❌                      |
-| ΔWORK contribution       | ❌             | ❌                      |
-| Requires time entries    | ❌             | ❌                      |
-
----
-
-### 🤒 Adding a sick leave day
-
-To mark a **sick leave day**, use the `add` command with the sick leave position.
+A date can contain multiple IN/OUT pairs. A gap normally represents non-working time. Mark the preceding OUT event with
+`--work-gap` when the interval before the next IN must count as worked time:
 
 ```bash
-rtimelogger add 2025-03-10 --pos s
+rtimelogger add 2026-09-04 --pos O --in 09:00 --out 12:00 --work-gap
+rtimelogger add 2026-09-04 --pos R --in 13:00 --out 17:30
 ```
 
-To mark a **sick leave range** (e.g. a week), add the `--to` option:
+Edit the flag later with `--work-gap` or `--no-work-gap`:
 
 ```bash
-rtimelogger add 2025-03-10 --pos s --to 2025-03-14
+rtimelogger add 2026-09-04 --edit --pair 1 --work-gap
+rtimelogger add 2026-09-04 --edit --pair 1 --no-work-gap
 ```
 
-**Behavior**
+When a date contains more than one working location, statistics classify it as `M` (Mixed) and count the date only once.
 
-- No `--in`, `--out`, `--lunch`, or `--work-gap` parameters are allowed
-- The day (or range) is recorded as a non-working sick leave marker
-- Weekends, national holidays, and dates that already contain events are automatically skipped
-- Sick leave days do not contribute to worked time and are not deducted from personal holiday allowance
-
-**Output example**
-
-```text
-2025-03-10 (Mon) | Sick Leave | --:-- | --:-- | --:-- | --:-- | -
-```
-
----
-
-### 📝 Adding notes to a pair
-
-You can attach notes when creating or editing a pair:
+### Editing a pair
 
 ```bash
-rtimelogger add 2025-12-15 --in 09:00 --notes "Morning setup and backlog review"
+rtimelogger add 2026-09-04 --edit --pair 1 --in 08:45 --out 17:45
 ```
 
-Edit an existing pair:
+When `--pair` is omitted in edit mode, rTimelogger edits the last available pair:
 
 ```bash
-rtimelogger add 2025-12-15 --edit --pair 1 --notes "Extended debugging session"
+rtimelogger add 2026-09-04 --edit --out 18:00
 ```
 
-Edit without specifying a pair:
+### Notes
+
+Attach a note when adding or editing a pair:
 
 ```bash
-rtimelogger add 2025-12-15 --edit --notes "End of day summary"
+rtimelogger add 2026-09-04 --in 09:00 --notes "Planning and backlog review"
+rtimelogger add 2026-09-04 --edit --pair 1 --notes "Extended debugging session"
+rtimelogger add 2026-09-04 --edit --notes "End-of-day summary"
 ```
 
-➡️ Notes will be applied automatically to the last available pair.
+Notes do not affect time calculations and appear only in detailed output.
 
-**Behavior**
-
-- Notes are stored as plain text
-- They are optional
-- They do not affect time calculations
-
----
-
-## 📋 Listing sessions — `rtimelogger list`
-
-The `list` command displays saved work sessions, supporting multiple layouts and levels of detail.
-
-### **Basic usage**:
+### Paid leave
 
 ```bash
-rtimelogger list                     # current month
+rtimelogger add 2026-09-07 --pos H
 ```
 
-Shows the sessions for the current month using the default tabular layout.
+Do not provide `--in`, `--out`, `--lunch`, or gap options for a marker day.
 
-### 📅 **Supported periods**
+### Sick leave
+
+Single date:
 
 ```bash
-rtimelogger list --period 2025-12
-rtimelogger list --period 2025
-rtimelogger list --period 2025-12-01
-rtimelogger list --period 2025-12-01:2025-12-31
+rtimelogger add 2026-09-08 --pos S
+```
+
+Date range:
+
+```bash
+rtimelogger add 2026-09-08 --pos S --to 2026-09-11
+```
+
+For sick-leave ranges, weekends, national holidays, and dates that already contain events are skipped.
+
+### National holidays
+
+```bash
+rtimelogger add 2026-12-25 --pos N
+```
+
+Paid leave, sick leave, and national holidays are neutral in daily `list` balances. In aggregated statistics, they
+fulfil the contractual time expected for the corresponding weekday.
+
+## Listing sessions
+
+Show the current month:
+
+```bash
+rtimelogger list
+```
+
+Select a year, month, date, custom range, or all stored data:
+
+```bash
+rtimelogger list --period 2026
+rtimelogger list --period 2026-09
+rtimelogger list --period 2026-09-04
+rtimelogger list --period 2026-09-01:2026-09-30
 rtimelogger list --period all
 ```
 
-### 📆 **Weekday display**
-
-The weekday is shown inside the date column, using the format:
-
-```text
-YYYY-MM-DD (Mo)
-YYYY-MM-DD (Monday)
-```
-
-The format is controlled by the show_weekday configuration option:
-
-| Value    | Output example        |
-|----------|-----------------------|
-| `none`   | `2025-12-19`          |
-| `short`  | `2025-12-19 (Mo)`     |
-| `medium` | `2025-12-19 (Mon)`    |
-| `long`   | `2025-12-19 (Monday)` |
-
-### 📊 Standard output
+Show today:
 
 ```bash
-rtimelogger list --period 2025-12
+rtimelogger list --today
 ```
 
-Example:
-
-```text
-DATE (WD)        | POSITION        |  IN   | LNCH  |  OUT  |  TGT  |  ΔWORK
----------------------------------------------------------------------------
-2025-12-19 (Fr)  | Remote          | 08:55 | 00:30 | 18:27 | 17:01 | -02h04m
-```
-
-**Columns explained**:
-
-- **IN** – first check-in of the day
-- **LNCH** – total lunch break duration
-- **OUT** – last check-out
-- **TGT** – planned exit time (minimum required work time)
-- **ΔWORK** – worked surplus or deficit
-
-### 🧾 Pair details (--details)
+Filter by position:
 
 ```bash
-rtimelogger list --period 2025-12-19 --details
+rtimelogger list --period 2026-09 --pos R
 ```
 
-Displays the **individual** IN/OUT pairs for the selected day. It is available **only** for single-day periods or
-`--today`.
+### Detailed view
 
-**Output example**:
-
-```text
-DETAILS
-PAIR |  IN   |  OUT  | WORKED | LUNCH | POSITION | WG
-------------------------------------------------------
-  1  | 08:55 | 09:37 | 00h42m |  0m   | Remote   |
-  2  | 13:07 | 18:27 | 04h50m | 30m   | Remote   |
-```
-
-**Columns explained**:
-
-- **PAIR** – pair index
-- **IN** / **OUT** – timestamps for the pair
-- **WORKED** – worked time for the pair
-- **LUNCH** – lunch break for the pair
-- **POSITION** – position for the pair
-- **WG** – working gap indicator (🔗 for working gap, ✂️ for non-working gap)
-
-#### 📝 Notes rendering
-
-When notes are present, an additional section is displayed:
-
-ˆˆtext
-NOTES
-------------------------------------------------------------------------
-Fixed production bug, performed root cause analysis and deployed patch
-ˆˆˆ
-
-**Behavior**
-
-- Notes are shown only in `--details` mode
-- Automatically wrapped at 72 characters
-- Preserves indentation and CLI formatting
-
-### 📦 Compact view (--compact)
+Detailed output shows individual pairs, lunch, position, work-gap state, and notes:
 
 ```bash
-rtimelogger list --period 2025-12 --compact
+rtimelogger list --today --details
+rtimelogger list --period 2026-09-04 --details
 ```
 
-Shows a condensed, single-line-per-day view, suitable for long periods.
+`--details` is valid only with `--today` or a single-date `--period`.
 
-Example:
-
-```text
-DATE (WD)        | POSITION | IN / LNCH / OUT       | TGT   | ΔWORK
---------------------------------------------------------------------
-2025-12-19 (Fr)  | Remote   | 08:55 / 00:30 / 18:27 | 17:01 | Δ -02h04m
-2025-12-22 (Mo)  | Holiday  | --:-- / --:-- / --:-- | --:-- | Δ -
-```
-
-**Characteristics**:
-
-- compact horizontal layout
-- weekday forced to short format
-- no pair details
-
-> ⚠️ `--compact` **cannot be combined** with `--details`
-
-### Events listing (--events)
+### Compact view
 
 ```bash
-rtimelogger list --period 2025-12-15 --events
+rtimelogger list --period 2026-09 --compact
 ```
 
-Displays the raw IN / OUT events for the selected day.
+`--compact` cannot be combined with `--details`.
 
-**Output example**:
-
-```text
-EVENTS:
-
-     Date Time     | Type |    Lunch     |     Position     | Source | Pair | Work Gap
-----------------------------------------------------------------------------------------
-→ 2025-12-19 08:55 |   in | lunch  0 min | Remote           |  cli   |   1  |
-             09:37 |  out | lunch  0 min | Remote           |  cli   |   1  |
-             13:07 |   in | lunch  0 min | Remote           |  cli   |   2  |
-             18:27 |  out | lunch 30 min | Remote           |  cli   |   2  |
-```
-
-### 🏖️ Holiday days
-
-Days marked as **Holiday**:
-
-- display no time values (--:--)
-- do not affect surplus calculations
-- are rendered as neutral rows
-
-### ➕ Period total
-
-At the end of the output, a cumulative total is always displayed:
-
-```text
-Σ Total ΔWORK: +02h04m
-```
-
-The total accounts for:
-
-- lunch breaks
-- work gaps
-- holidays (neutral contribution)
-
-### 🔢 JSON output (--json)
+### Raw events
 
 ```bash
-rtimelogger list --period 2025-12 --json
+rtimelogger list --period 2026-09-04 --events
+rtimelogger list --period 2026-09-04 --events --pairs 2
 ```
 
-Outputs the data in JSON format for easy integration with other tools or scripts.
+## Work statistics
 
----
-
-## 🗑️ Delete data — `rtimelogger del`
+The `stats` command reports an inclusive date range:
 
 ```bash
-rtimelogger del 2025-12-15
-rtimelogger del --pair 2 2025-12-15
+rtimelogger stats --from 2026-01-01 --to 2026-12-31
 ```
 
-All deletions require confirmation and automatically reindex pairs.
-
----
-
-## 💾 Backup database — `rtimelogger backup`
+The default grouping is `month`. Override it with:
 
 ```bash
-rtimelogger backup --file /abs/path/backup.sqlite
-rtimelogger backup --file /abs/path/backup.sqlite --compress
-```
-
-* confirmation before overwrite
-* ZIP on Windows
-* TAR.GZ on Linux/macOS
-
----
-
-## 📊 Work statistics — `rtimelogger stats`
-
-The `stats` command summarizes an inclusive date range by ISO week, calendar month, or calendar year:
-
-```bash
+rtimelogger stats --from 2026-08-01 --to 2026-09-30 --group-by week
 rtimelogger stats --from 2026-01-01 --to 2026-12-31 --group-by month
+rtimelogger stats --from 2024-01-01 --to 2026-12-31 --group-by year
 ```
 
-Accepted values for `--group-by` are `week`, `month`, and `year`. Weekly groups follow ISO week numbering
-(Monday through Sunday); the first and last groups may be partial when the requested range starts or ends
-inside a group.
+Accepted values are:
 
-The report shows:
+| Value   | Grouping rule                   |
+|---------|---------------------------------|
+| `week`  | ISO week, Monday through Sunday |
+| `month` | Calendar month; default         |
+| `year`  | Calendar year                   |
 
-* expected contractual time;
-* actual worked time, including gaps marked as work gaps;
-* paid holiday, sick leave, and national holiday time;
-* recognized time and balance;
-* worked/leave/sick/national-holiday day counts;
-* average actual time per worked day.
+The first and last group may be partial when the requested dates fall inside a week, month, or year.
 
-Holiday (`H`), Sick Leave (`S`), and National Holiday (`N`) markers fulfil the expected contractual time for
-the day. They therefore describe how recognized time is composed without reducing the worker's balance.
-Weekdays with no recorded event remain part of the calculation and contribute their expected time.
+### Time statistics
+
+The first table displays:
+
+- expected contractual time;
+- actual worked time;
+- paid-leave time (`H`);
+- sick-leave time (`S`);
+- national-holiday time (`N`);
+- recognized time;
+- balance.
+
+Working gaps count as worked time; non-working gaps do not. Lunch is not part of contractual working time.
 
 ```text
-recognized = worked + leave + sick + national holiday
+recognized = worked + paid leave + sick leave + national holiday
 balance    = recognized - expected
 ```
 
-Examples:
+Weekdays without a recorded event remain in the requested period: they contribute expected time but no recognized time,
+producing the corresponding deficit.
 
-```bash
-rtimelogger stats --from 2026-08-01 --to 2026-08-31 --group-by week
-rtimelogger stats --from 2026-01-01 --to 2026-12-31 --group-by month
-rtimelogger stats --from 2020-01-01 --to 2026-12-31 --group-by year
+### Day distribution
+
+The second table reports how many dates belong to each category:
+
+```text
+O = Office
+R = Remote
+C = On-site
+M = Mixed
+H = Paid Leave
+S = Sick Leave
+N = National Holiday
 ```
 
----
+Each date belongs to exactly one category. A working date containing different locations is classified as
+`M`. Dates without records are not assigned to a category.
 
-## 📤 Export data — `rtimelogger export`
+```text
+worked_days = O + R + C + M
+total_days  = O + R + C + M + H + S + N
+```
+
+`Avg/day` is actual worked time divided by effectively worked days (`O + R + C + M`). Protected absences and national
+holidays do not lower this average.
+
+## Deleting data
+
+Delete all events for a date:
 
 ```bash
-rtimelogger export --format pdf --file /abs/path/report.pdf --range 2025-12
+rtimelogger del 2026-09-04
+```
+
+Delete a selected pair:
+
+```bash
+rtimelogger del 2026-09-04 --pair 2
+```
+
+Deletion requires confirmation and pair identifiers are recalculated afterward.
+
+## Backups
+
+```bash
+rtimelogger backup --file /absolute/path/rtimelogger.sqlite
+rtimelogger backup --file /absolute/path/rtimelogger-backup --compress
+```
+
+Compressed backups use ZIP on Windows and TAR.GZ on Linux and macOS.
+
+## Exporting data
+
+```bash
+rtimelogger export \
+  --format xlsx \
+  --file /absolute/path/rtimelogger.xlsx \
+  --range 2026-09
 ```
 
 Supported formats:
 
-* `csv`
-* `json`
-* `xlsx`
-* `pdf`
+- `csv`
+- `json`
+- `xlsx`
+- `pdf`
 
-Output path must be **absolute**.
+Additional options:
 
----
+- `--events` exports individual events;
+- `--force` overwrites an existing output file;
+- `--range` accepts the same period formats used by reporting commands.
 
-## Import data (JSON / CSV)
+The output path must be absolute.
 
-Starting from **v0.8.3**, rTimelogger supports importing work sessions and holidays from external files.  
-This feature is designed to simplify **preventive data entry**, especially for **national holidays**.
+The `export` command currently exports session data. Statistics-specific CSV and XLSX exports are planned for a later
+release.
 
-The import system is safe by default and provides a full **dry-run mode**.
+## Importing calendar days
 
----
+Import national holidays or paid-leave markers from JSON or CSV:
 
-### Supported formats
+```bash
+rtimelogger import --file holidays.json --format json --dry-run
+rtimelogger import --file holidays.csv --format csv --source calendar
+```
 
-#### JSON
+Options:
 
-Flexible JSON structures are supported. The following formats are valid:
+| Option                 | Meaning                                 |
+|------------------------|-----------------------------------------|
+| `--file <FILE>`        | Input file; required                    |
+| `--format <json\|csv>` | Input format; default `json`            |
+| `--dry-run`            | Validate and preview without writing    |
+| `--replace`            | Replace conflicting dates               |
+| `--source <LABEL>`     | Store an origin label; default `import` |
 
-**Root object with `holidays`:**
+Use `--dry-run` before importing production data. By default, existing work dates are preserved and conflicts are
+skipped unless `--replace` is supplied.
+
+### JSON examples
+
+Root object with `holidays`:
 
 ```json
 {
   "year": 2026,
   "holidays": [
-	{
-	  "date": "2026-01-01",
-	  "name": "New Year"
-	},
-	{
-	  "date": "2026-01-06",
-	  "name": "Epiphany"
-	}
+    {
+      "date": "2026-01-01",
+      "name": "New Year"
+    },
+    {
+      "date": "2026-01-06",
+      "name": "Epiphany"
+    }
   ]
 }
 ```
 
-**Root object with `days`:**
+Root object with `days`:
 
 ```json
 {
   "days": [
-	{
-	  "date": "2026-05-01",
-	  "position": "N",
-	  "name": "Labour Day"
-	}
+    {
+      "date": "2026-05-01",
+      "position": "N",
+      "name": "Labour Day"
+    }
   ]
 }
 ```
 
-**Root array of day objects:**
+Root array:
 
 ```json
 [
   {
-	"date": "2026-12-25",
-	"name": "Christmas Day"
+    "date": "2026-12-25",
+    "name": "Christmas Day"
   }
 ]
-
 ```
 
-**Notes**:
+When `position` is omitted, it defaults to `N`. The optional `name` is stored as event metadata.
 
-- `position` is optional:
-    - if omitted, it defaults to `NationalHoliday`
-- `name` is optional and stored in the event `meta` field
-
-#### CSV
-
-CSV files must include a header row.
-
-Example:
+### CSV example
 
 ```csv
 date,position,name
@@ -738,75 +570,9 @@ date,position,name
 2026-04-25,N,Liberation Day
 ```
 
-**Notes**:
+Imported records preserve source and format metadata for traceability.
 
-- `position` must be a valid location code (`N`, `H`, `O`, `R`, `C`, `M`)
-- name is optional
-
-### Import command
-
-```bash
-rtimelogger import --file <path> [options]
-```
-
-**Options**
-
-- `--file <path>` : Path to the input file (required)
-
-- `--format <json|csv>` : Input format (default: json)
-
-- `--dry-run` : Simulate the import without modifying the database (strongly recommended)
-
-- `--replace` : Replace existing events for conflicting dates (dangerous)
-
-- `--source <label>` : Logical label describing the origin of imported data. The final stored value will include the
-  format automatically (e.g. import (from json))
-
-### Import behavior
-
-- Only Holiday and NationalHoliday positions are accepted by default.
-- Dates with existing work events are skipped unless --replace is used.
-- Imported holidays:
-    - do **not** affect the vacation balance
-    - are treated as regular timeline entries
-
-- Each import generates a detailed summary:
-    - total rows
-    - imported
-    - skipped
-    - conflicts
-    - invalid rows
-
-### Example (dry-run)
-
-```bash
-rtimelogger import \
-  --file holidays_2026.json \
-  --format json \
-  --dry-run
-```
-
-### Example (apply import)
-
-```bash
-rtimelogger import \
-  --file holidays_2026.csv \
-  --format csv \
-  --source calendar
-```
-
-### Metadata and traceability
-
-- Imported events store additional information in the meta field (JSON).
-- The source field tracks the origin of the data:
-    - CLI entries → cli
-    - Imports → import (from json) / import (from csv)
-
-This ensures full traceability of all events.
-
----
-
-## 🗄️ Database utilities — `rtimelogger db`
+## Database maintenance
 
 ```bash
 rtimelogger db --info
@@ -815,52 +581,44 @@ rtimelogger db --vacuum
 rtimelogger db --migrate
 ```
 
----
+Database migrations preserve existing data and create automatic backups when required by the migration.
 
-## ⚙️ Configuration management — `rtimelogger config`
-
-```bash
-rtimelogger config --print
-rtimelogger config --edit
-rtimelogger config --migrate
-```
-
-Missing fields are added automatically with defaults.
-
----
-
-## 📜 Internal audit log — `rtimelogger log`
+## Audit log
 
 ```bash
 rtimelogger log --print
 ```
 
-Shows timestamped internal operations (add, del, migrate, backup, …).
+The internal log records operations such as additions, deletions, migrations, and backups.
 
----
+## Validation for contributors
 
-## 🔄 Upgrading from older versions
+Run the complete project checks before opening a pull request:
 
-If you are upgrading from **0.7.x or earlier**, read:
+```powershell
+.\dev_tools\build_check.ps1
+```
 
-➡️ **[UPGRADE-0.7-to-0.8.md](UPGRADE-0.7-to-0.8.md)**
+Or run the Rust checks individually:
 
-This document explains:
+```bash
+cargo fmt --all -- --check
+cargo test
+cargo clippy --all-targets --all-features -- -D warnings
+```
 
-* schema changes
-* migration behavior
-* removed legacy features
-* important behavioral differences
+## Upgrading
 
----
+Users upgrading from version 0.7.x or earlier should read
+[UPGRADE-0.7-to-0.8.md](UPGRADE-0.7-to-0.8.md) before running database migrations.
 
-## 📚 Documentation
+No database migration is required when upgrading from v0.9.0 to v0.9.1.
 
-* 📄 [CHANGELOG.md](CHANGELOG.md)
-* 🔄 [UPGRADE-0.7-to-0.8.md](UPGRADE-0.7-to-0.8.md)
+## Documentation
 
----
+- [CHANGELOG.md](CHANGELOG.md)
+- [Upgrade guide from 0.7 to 0.8](UPGRADE-0.7-to-0.8.md)
 
-## 📜 License
+## License
 
-MIT License – see [LICENSE](LICENSE).
+Released under the MIT License. See [LICENSE](LICENSE).

@@ -1,5 +1,64 @@
 # Changelog
 
+## [v0.9.1] - 2026-09-04
+
+### ✨ Added
+
+* Added daily counts for every supported work-location category:
+
+    * `O` — Office
+    * `R` — Remote
+    * `C` — On-site / Customer
+    * `M` — Mixed
+    * `H` — Paid Leave
+    * `S` — Sick Leave
+    * `N` — National Holiday
+* Added automatic `Mixed` classification when multiple working locations are recorded on the same date.
+* Added a total count of categorized days for each reporting period.
+* Added tests for individual location categories and automatic mixed-day classification.
+
+### 🎨 CLI / UX
+
+* Redesigned statistics output using styled Unicode tables.
+* Split statistics into two sections:
+
+    * expected, worked, and recognized time;
+    * day distribution by location category.
+* Added semantic colors for work locations, paid leave, sick leave, national holidays, and balances.
+* Added distinct colored backgrounds for the two table titles.
+* Added highlighted total rows and a category legend.
+* Clarified terminology:
+
+    * `H` is displayed as **Paid Leave**;
+    * `S` is displayed as **Sick Leave**;
+    * `N` is displayed as **National Holiday**.
+
+### 🔧 Changed
+
+* `--group-by` now defaults to `month` when omitted.
+
+```bash
+rtimelogger stats --from 2026-08-01 --to 2026-09-30
+```
+
+is therefore equivalent to:
+
+```bash
+rtimelogger stats \
+  --from 2026-08-01 \
+  --to 2026-09-30 \
+  --group-by month
+```
+
+* Each calendar date is counted in exactly one category.
+* `worked_days` remains the sum of Office, Remote, On-site, and Mixed days.
+* `Avg/day` continues to use only effectively worked days.
+
+### ⚙️ Compatibility
+
+* No database migration is required.
+* Existing rTimelogger databases remain fully compatible.
+
 ## [v0.9.0] - 2026-09-02
 
 ### ✨ Added
