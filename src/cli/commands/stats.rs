@@ -232,9 +232,19 @@ fn print_table(rows: &[WorkStats]) {
     );
     println!("{}", border('╰', '┴', '╯', &time_widths));
 
-    let day_widths = [9, 8, 10, 10, 12, 8];
+    let office_days = rows.iter().map(|stats| stats.office_days).sum::<u32>();
+    let remote_days = rows.iter().map(|stats| stats.remote_days).sum::<u32>();
+    let onsite_days = rows.iter().map(|stats| stats.onsite_days).sum::<u32>();
+    let mixed_days = rows.iter().map(|stats| stats.mixed_days).sum::<u32>();
+    let covered_days = total.5 + total.6 + total.7 + total.8;
+
+    let day_widths = [9, 3, 3, 3, 3, 3, 3, 3, 5, 8];
     let day_alignments = [
         Alignment::Left,
+        Alignment::Right,
+        Alignment::Right,
+        Alignment::Right,
+        Alignment::Right,
         Alignment::Right,
         Alignment::Right,
         Alignment::Right,
@@ -246,7 +256,7 @@ fn print_table(rows: &[WorkStats]) {
     println!("{}", outer_border('╭', '╮', &day_widths));
     println!(
         "{}",
-        title_row("DAYS · Distribution and average", &day_widths, TITLE_DAYS,)
+        title_row("DAYS · Distribution by category", &day_widths, TITLE_DAYS,)
     );
     println!("{}", border('├', '┬', '┤', &day_widths));
     println!(
@@ -254,15 +264,19 @@ fn print_table(rows: &[WorkStats]) {
         row(
             &[
                 "Period".into(),
-                "Worked".into(),
-                "Paid Leave".into(),
-                "Sick Leave".into(),
-                "Nat. Holiday".into(),
+                "O".into(),
+                "R".into(),
+                "C".into(),
+                "M".into(),
+                "H".into(),
+                "S".into(),
+                "N".into(),
+                "Total".into(),
                 "Avg/day".into(),
             ],
             &day_widths,
             &day_alignments,
-            &[BOLD_CYAN; 6],
+            &[BOLD_CYAN; 10],
         )
     );
     println!("{}", border('├', '┼', '┤', &day_widths));
@@ -273,10 +287,18 @@ fn print_table(rows: &[WorkStats]) {
             row(
                 &[
                     stats.label.clone(),
-                    stats.worked_days.to_string(),
+                    stats.office_days.to_string(),
+                    stats.remote_days.to_string(),
+                    stats.onsite_days.to_string(),
+                    stats.mixed_days.to_string(),
                     stats.paid_leave_days.to_string(),
                     stats.sick_leave_days.to_string(),
                     stats.national_holiday_days.to_string(),
+                    (stats.worked_days
+                        + stats.paid_leave_days
+                        + stats.sick_leave_days
+                        + stats.national_holiday_days)
+                        .to_string(),
                     stats
                         .average_worked_minutes()
                         .map(duration)
@@ -286,10 +308,14 @@ fn print_table(rows: &[WorkStats]) {
                 &day_alignments,
                 &[
                     colors::RESET,
+                    colors::BLUE,
                     colors::CYAN,
+                    colors::YELLOW,
+                    colors::MAGENTA,
                     colors::MAGENTA,
                     colors::GREY,
                     colors::RED,
+                    colors::RESET,
                     colors::RESET,
                 ],
             )
@@ -302,16 +328,23 @@ fn print_table(rows: &[WorkStats]) {
         row(
             &[
                 "TOTAL".into(),
-                total.5.to_string(),
+                office_days.to_string(),
+                remote_days.to_string(),
+                onsite_days.to_string(),
+                mixed_days.to_string(),
                 total.6.to_string(),
                 total.7.to_string(),
                 total.8.to_string(),
+                covered_days.to_string(),
                 average,
             ],
             &day_widths,
             &day_alignments,
-            &[BOLD; 6],
+            &[BOLD; 10],
         )
     );
     println!("{}", border('╰', '┴', '╯', &day_widths));
+    println!(
+        "\nO=Office · R=Remote · C=On-site · M=Mixed · H=Paid Leave · S=Sick Leave · N=National Holiday"
+    );
 }
