@@ -186,7 +186,7 @@ pub enum Commands {
         to: NaiveDate,
 
         /// Aggregate results by ISO week, calendar month, or calendar year
-        #[arg(long = "group-by", value_enum)]
+        #[arg(long = "group-by", value_enum, default_value = "month")]
         group_by: StatsGrouping,
     },
 
