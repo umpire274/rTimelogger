@@ -52,6 +52,10 @@ pub fn calculate(
             sick_leave_minutes: 0,
             national_holiday_minutes: 0,
             worked_days: 0,
+            office_days: 0,
+            remote_days: 0,
+            onsite_days: 0,
+            mixed_days: 0,
             paid_leave_days: 0,
             sick_leave_days: 0,
             national_holiday_days: 0,
@@ -87,6 +91,15 @@ pub fn calculate(
                     let timeline = build_timeline(day_events);
                     if !timeline.pairs.is_empty() {
                         stats.worked_days += 1;
+                        match classify_workday(day_events) {
+                            Location::Office => stats.office_days += 1,
+                            Location::Remote => stats.remote_days += 1,
+                            Location::OnSite => stats.onsite_days += 1,
+                            Location::Mixed => stats.mixed_days += 1,
+                            Location::Holiday | Location::NationalHoliday | Location::SickLeave => {
+                                unreachable!("marker handled above")
+                            }
+                        }
                         stats.worked_minutes += timeline.total_worked_minutes
                             + timeline
                                 .gaps
@@ -105,6 +118,34 @@ pub fn calculate(
     }
 
     Ok(groups.into_values().collect())
+}
+
+fn classify_workday(events: &[Event]) -> Location {
+    let mut office = false;
+    let mut remote = false;
+    let mut onsite = false;
+    let mut mixed = false;
+
+    for event in events.iter().filter(|event| event.kind.is_in()) {
+        match event.location {
+            Location::Office => office = true,
+            Location::Remote => remote = true,
+            Location::OnSite => onsite = true,
+            Location::Mixed => mixed = true,
+            Location::Holiday | Location::NationalHoliday | Location::SickLeave => {}
+        }
+    }
+
+    let distinct_locations = u8::from(office) + u8::from(remote) + u8::from(onsite);
+    if mixed || distinct_locations != 1 {
+        Location::Mixed
+    } else if office {
+        Location::Office
+    } else if remote {
+        Location::Remote
+    } else {
+        Location::OnSite
+    }
 }
 
 fn contractual_credit(day: NaiveDate, contractual_minutes: i64) -> i64 {
@@ -205,6 +246,52 @@ mod tests {
 
         let stats = calculate(&events, day, day, StatsGrouping::Month, &Config::default()).unwrap();
         assert_eq!(stats[0].worked_minutes, 9 * 60);
+        assert_eq!(stats[0].office_days, 1);
+    }
+
+    #[test]
+    fn multiple_work_locations_count_as_one_mixed_day() {
+        let day = NaiveDate::from_ymd_opt(2026, 8, 3).unwrap();
+        let events = vec![
+            event(day, "09:00", EventType::In, Location::Office),
+            event(day, "12:00", EventType::Out, Location::Office),
+            event(day, "13:00", EventType::In, Location::Remote),
+            event(day, "18:00", EventType::Out, Location::Remote),
+        ];
+
+        let stats = calculate(&events, day, day, StatsGrouping::Month, &Config::default()).unwrap();
+        assert_eq!(stats[0].worked_days, 1);
+        assert_eq!(stats[0].office_days, 0);
+        assert_eq!(stats[0].remote_days, 0);
+        assert_eq!(stats[0].mixed_days, 1);
+    }
+
+    #[test]
+    fn working_days_are_counted_by_location_category() {
+        let from = NaiveDate::from_ymd_opt(2026, 8, 3).unwrap();
+        let locations = [
+            Location::Office,
+            Location::Remote,
+            Location::OnSite,
+            Location::Mixed,
+        ];
+        let mut events = Vec::new();
+
+        for (offset, location) in locations.into_iter().enumerate() {
+            let day = from
+                .checked_add_signed(Duration::days(offset as i64))
+                .unwrap();
+            events.push(event(day, "09:00", EventType::In, location));
+            events.push(event(day, "17:00", EventType::Out, location));
+        }
+
+        let to = from.checked_add_signed(Duration::days(3)).unwrap();
+        let stats = calculate(&events, from, to, StatsGrouping::Month, &Config::default()).unwrap();
+        assert_eq!(stats[0].worked_days, 4);
+        assert_eq!(stats[0].office_days, 1);
+        assert_eq!(stats[0].remote_days, 1);
+        assert_eq!(stats[0].onsite_days, 1);
+        assert_eq!(stats[0].mixed_days, 1);
     }
 
     #[test]
